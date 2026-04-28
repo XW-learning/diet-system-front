@@ -1,0 +1,73 @@
+/* 🌟 1. 强制所有元素使用怪异盒模型，防止 padding 撑开宽度 */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* 🌟 2. 锁死 html 和 body 的横向溢出 */
+html,
+body {
+    width: 100%;
+    height: 100%;
+    /* 彻底禁止横向滚动条 */
+    overflow-x: hidden;
+    /* 解决移动端点击高亮和滚动丝滑度 */
+    -webkit-tap-highlight-color: transparent;
+    -webkit-overflow-scrolling: touch;
+
+    /* 🌟 3. 禁止移动端浏览器的“橡皮筋”回弹效果（可选） */
+    /* 如果你不希望整个页面上下能拉出白底，加上这一行 */
+    overscroll-behavior-y: none;
+}
+
+/* 🌟 4. 确保 App 根容器不会超出视口 */
+#app {
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* =========================================
+   🌟 全局自定义滚动条样式 (奶油棕主题)
+========================================= */
+
+/* 1. 针对 WebKit 浏览器 (Chrome, Edge, Safari) */
+
+/* 滚动条整体宽度/高度 */
+::-webkit-scrollbar {
+    width: 6px;
+    /* 纵向滚动条的宽度，改细一点更精致 */
+    height: 6px;
+    /* 横向滚动条的高度 */
+}
+
+/* 滚动条轨道 (背景) */
+::-webkit-scrollbar-track {
+    background: transparent;
+    /* 背景透明，完美融入你的 #FFF9EA 底色 */
+    border-radius: 4px;
+}
+
+/* 滚动条滑块 (拖动的那部分) */
+::-webkit-scrollbar-thumb {
+    background: #E2D3C2;
+    /* 浅浅的奶茶棕色，和你的图标背景色呼应 */
+    border-radius: 10px;
+    /* 超大圆角，像个小胶囊 */
+}
+
+/* 鼠标悬停在滑块上时的颜色 */
+::-webkit-scrollbar-thumb:hover {
+    background: #CDBA9E;
+    /* 稍微变深一点点，增加交互感 */
+}
+
+/* 2. 针对 Firefox 浏览器 (火狐不支持上面那种精细控制，只能改颜色和粗细) */
+* {
+    /* 粗细设为细 */
+    scrollbar-width: thin;
+    /* 前面是滑块颜色，后面是轨道颜色 */
+    scrollbar-color: #E2D3C2 transparent;
+}
