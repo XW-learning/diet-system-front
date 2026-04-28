@@ -26,7 +26,7 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/calendar',
     name: 'Calendar',
-    component: () => import('@/views/user/home/components/CalendarIndex.vue'),
+    component: () => import('@/components/home/CalendarIndex.vue'),
     meta: { requiresAuth: true, depth: 1 }
   },
   {
@@ -47,7 +47,7 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/search',
     name: 'Search',
-    component: () => import('@/views/user/home/components/SearchOverlay.vue'),
+    component: () => import('@/components/home/SearchOverlay.vue'),
     meta: { requiresAuth: true, depth: 2 }
   },
   // 在 src/router/index.ts 中找到关于 plan 的路由配置部分添加：
@@ -55,7 +55,7 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/plan/detail/:id',
     name: 'PlanDetail',
-    component: () => import('@/views/user/plan/components/PlanDetail.vue'),
+    component: () => import('@/components/plan/PlanDetail.vue'),
     meta: { title: '计划详情' }
   },
 
@@ -107,7 +107,7 @@ const router = createRouter({
 })
 
 // 全局路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const token = localStorage.getItem('token')
   const adminToken = localStorage.getItem('admin_token')
 

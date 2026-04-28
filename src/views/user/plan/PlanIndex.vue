@@ -90,11 +90,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import PlanCard from './components/PlanCard.vue'
-import type { PlanItem } from './components/PlanCard.vue'
-import BottomNavBar from '../home/components/BottomNavBar.vue';
+import PlanCard from '@/components/plan/PlanCard.vue'
+import type { PlanItem } from '@/components/plan/PlanCard.vue'
+import BottomNavBar from '@/components/home/BottomNavBar.vue';
 import { usePlanStore } from '@/stores/plan';
-import Toast from '@/components/Toast.vue'; // 🌟 引入你的 Toast 组件
+import Toast from '@/components/Toast.vue';
 
 const planStore = usePlanStore();
 

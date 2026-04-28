@@ -72,7 +72,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import RecordBottomSheet from './RecordBottomSheet.vue';
+import RecordBottomSheet from '@/components/home/RecordBottomSheet.vue';
 import Toast from '@/components/Toast.vue';
 import { doMealCheckIn } from '@/api/checkin';
 

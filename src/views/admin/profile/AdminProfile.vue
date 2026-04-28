@@ -118,7 +118,7 @@ const passwordForm = reactive({
 });
 
 // 自定义验证器：确认密码
-const validateConfirmPassword = (rule: any, value: string, callback: any) => {
+const validateConfirmPassword = (_rule: any, value: string, callback: any) => {
   if (value === '') {
     callback(new Error('请再次输入新密码'));
   } else if (value !== passwordForm.newPassword) {
@@ -138,7 +138,7 @@ const passwordRules: FormRules = {
     { required: true, message: '请输入新密码', trigger: 'blur' },
     { min: 6, max: 20, message: '密码长度在 6 到 20 个字符', trigger: 'blur' },
     {
-      validator: (rule: any, value: string, callback: any) => {
+      validator: (_rule: any, value: string, callback: any) => {
         if (value === passwordForm.oldPassword) {
           callback(new Error('新密码不能与原密码相同'));
         } else {

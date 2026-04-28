@@ -51,20 +51,20 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import HomeHeader from './components/HomeHeader.vue';
-import DietDashboard from './components/DietDashboard.vue';
-import SearchOverlay from './components/SearchOverlay.vue';
-import DishSelectOverlay from './components/DishSelectOverlay.vue';
-import ExerciseSelectOverlay from './components/ExerciseSelectOverlay.vue';
-import DietAnalysisOverlay from './components/DietAnalysisOverlay.vue';
-import WaterRecord from './components/WaterRecord.vue';
-import WeightRecord from './components/WeightRecord.vue';
-import BmiRecord from './components/BmiRecord.vue';
-import PeriodRecord from './components/PeriodRecord.vue';
-import WaistRecord from './components/WaistRecord.vue';
-import Profile from '../profile/Profile.vue';
-import CalendarIndex from './components/CalendarIndex.vue'; // 🌟 新增引入日历组件
-import BottomNavBar from './components/BottomNavBar.vue'; // 🌟 新增引入
+import HomeHeader from '@/components/home/HomeHeader.vue';
+import DietDashboard from '@/components/home/DietDashboard.vue';
+import SearchOverlay from '@/components/home/SearchOverlay.vue';
+import DishSelectOverlay from '@/components/home/DishSelectOverlay.vue';
+import ExerciseSelectOverlay from '@/components/home/ExerciseSelectOverlay.vue';
+import DietAnalysisOverlay from '@/components/home/DietAnalysisOverlay.vue';
+import WaterRecord from '@/components/home/WaterRecord.vue';
+import WeightRecord from '@/components/home/WeightRecord.vue';
+import BmiRecord from '@/components/home/BmiRecord.vue';
+import PeriodRecord from '@/components/home/PeriodRecord.vue';
+import WaistRecord from '@/components/home/WaistRecord.vue';
+import Profile from '@/views/user/profile/Profile.vue';
+import CalendarIndex from '@/components/home/CalendarIndex.vue';
+import BottomNavBar from '@/components/home/BottomNavBar.vue';
 
 import { getUserInfoApi } from '@/api/auth';
 import { getBodyRecordListApi } from '@/api/body';
@@ -113,7 +113,7 @@ const triggerRefresh = () => { refreshTick.value++; };
 const fetchBodyRecords = async () => {
     if (!userInfo.value?.id) return;
     try {
-        const res: any = await getBodyRecordListApi(userInfo.value.id);
+        const res: any = await getBodyRecordListApi();
         if (res) bodyRecords.value = res;
     } catch (error) { console.error('获取身材记录失败:', error); }
 };

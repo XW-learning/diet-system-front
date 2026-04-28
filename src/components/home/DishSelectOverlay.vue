@@ -80,7 +80,7 @@ import { getCategoryList } from '@/api/category';
 import { getDishList } from '@/api/dish';
 import type { CategoryVO, DishVO } from '@/types/dish';
 import type { MealCheckInDTO } from '@/api/checkin';
-import SelectedFoodCart from './SelectedFoodCart.vue';
+import SelectedFoodCart from '@/components/home/SelectedFoodCart.vue';
 import Toast from '@/components/Toast.vue';
 
 const emit = defineEmits(['close', 'refresh']);

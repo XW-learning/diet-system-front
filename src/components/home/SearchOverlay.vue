@@ -58,7 +58,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue';
-import DishDetailOverlay from './DishDetailOverlay.vue';
+import DishDetailOverlay from '@/components/home/DishDetailOverlay.vue';
 
 const emit = defineEmits(['close', 'refresh']);
 

@@ -7,7 +7,7 @@
 </template>
 
 <script setup lang="ts">
-import BottomNavBar from '@/views/user/home/components/BottomNavBar.vue'
+import BottomNavBar from '@/components/home/BottomNavBar.vue'
 </script>
 
 <style scoped>

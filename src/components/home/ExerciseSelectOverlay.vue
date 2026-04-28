@@ -66,7 +66,7 @@ import { useRouter } from 'vue-router';
 // 引入运动相关的接口
 import { getExCategoryList, getExerciseList } from '@/api/exercise';
 import { doExerciseCheckIn } from '@/api/checkin';
-import SelectedExerciseCart from './SelectedExerciseCart.vue';
+import SelectedExerciseCart from '@/components/home/SelectedExerciseCart.vue';
 import Toast from '@/components/Toast.vue';
 
 const emit = defineEmits(['close', 'refresh']);
