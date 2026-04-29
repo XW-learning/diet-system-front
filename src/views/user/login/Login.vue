@@ -65,19 +65,21 @@
                 </span>
             </div>
         </div>
+
+        <Toast ref="toastRef" />
     </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
-import { showToast } from 'vant';
 import { loginApi, registerApi } from '@/api/auth';
-import { useRouter } from 'vue-router'; // 引入路由
-// 在下面加上引入 userStore
+import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
+import Toast from '@/components/Toast.vue';
 
 const router = useRouter();
-const userStore = useUserStore(); // 初始化 store
+const userStore = useUserStore();
+const toastRef = ref<InstanceType<typeof Toast> | null>(null);
 
 const isLoginMode = ref(true);
 const isRemember = ref(false);
@@ -116,19 +118,40 @@ const toggleMode = () => {
 
 const toggleAgree = () => formData.agreement = !formData.agreement;
 const toggleRemember = () => isRemember.value = !isRemember.value;
-const getCaptcha = () => showToast('验证码已发送（演示环境请填写 123456）');
-const handleClose = () => showToast('点击了关闭');
+const getCaptcha = () => {
+    if (toastRef.value) {
+        toastRef.value.show('验证码已发送（演示环境请填写 123456）', 'success');
+    }
+};
+const handleClose = () => {
+    if (toastRef.value) {
+        toastRef.value.show('点击了关闭', 'warning');
+    }
+};
 
 const handleSubmit = async () => {
     if (!formData.agreement) {
-        showToast('请先勾选并同意用户协议');
+        if (toastRef.value) {
+            toastRef.value.show('请先勾选并同意用户协议', 'warning');
+        }
         isShaking.value = true;
         setTimeout(() => isShaking.value = false, 500);
         return;
     }
 
-    if (!isPhoneValid.value) return showToast('请输入正确的11位手机号');
-    if (!isPasswordValid.value) return showToast('密码长度必须大于6位');
+    if (!isPhoneValid.value) {
+        if (toastRef.value) {
+            toastRef.value.show('请输入正确的11位手机号', 'error');
+        }
+        return;
+    }
+    
+    if (!isPasswordValid.value) {
+        if (toastRef.value) {
+            toastRef.value.show('密码长度必须大于6位', 'error');
+        }
+        return;
+    }
 
     isLoading.value = true;
 
@@ -173,7 +196,9 @@ const handleSubmit = async () => {
                 localStorage.removeItem('saved_phone');
             }
 
-            showToast({ type: 'success', message: '登录成功' });
+            if (toastRef.value) {
+                await toastRef.value.show('登录成功', 'success');
+            }
             // 强制跳转到首页，使用 replace 避免返回到登录页
             await router.replace('/home');
         } else {
@@ -184,11 +209,16 @@ const handleSubmit = async () => {
                 captcha: formData.captcha,
                 agreement: formData.agreement
             });
-            showToast({ type: 'success', message: '注册成功，请登录' });
+            if (toastRef.value) {
+                await toastRef.value.show('注册成功，请登录', 'success');
+            }
             isLoginMode.value = true;
         }
     } catch (error: any) {
         console.error('业务处理异常:', error);
+        if (toastRef.value) {
+            toastRef.value.show(error.message || '操作失败，请重试', 'error');
+        }
     } finally {
         isLoading.value = false;
     }
