@@ -50,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, onActivated } from 'vue';
 import HomeHeader from '@/components/home/HomeHeader.vue';
 import DietDashboard from '@/components/home/DietDashboard.vue';
 import SearchOverlay from '@/components/home/SearchOverlay.vue';
@@ -107,6 +107,11 @@ const closeAllOverlays = () => {
     showProfile.value = false;
     showCalendar.value = false; // 🌟 新增
 };
+
+onActivated(() => {
+    // 🌟 双保险：每次从缓存中被唤醒（比如重新登录回来），强行重置所有弹窗状态
+    closeAllOverlays();
+});
 
 const triggerRefresh = () => { refreshTick.value++; };
 

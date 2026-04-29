@@ -299,10 +299,27 @@ const handleLogout = async () => {
     try {
         await toastRef.value.confirmDialog({ title: '提示', message: '确定要退出登录吗？' });
         try { await logoutApi(); } catch (e) { console.warn('后端退出异常'); }
+
+        // 1. 清除本地缓存
         localStorage.removeItem('token');
         localStorage.removeItem('userId');
+        localStorage.removeItem('userInfo');
+
+        // 🌟 删掉这里的 emit('close'); ！！！
+        // 让个人中心页面继续盖在首页上面
+
+        // 2. 弹出提示
         toastRef.value.show('已安全退出');
-        setTimeout(() => { router.push('/login'); }, 1000);
+
+        // 3. 延迟 1 秒让用户看清提示，然后直接跳转
+        setTimeout(() => {
+            // 方案 A：使用 vue-router 跳转（配合 Home.vue 的 onActivated 已经可以完美解决）
+            // router.replace('/login');
+
+            // 方案 B（强烈推荐）：直接使用原生跳转。这在真实项目中是退出登录的最佳实践，
+            // 它可以强制刷新整个浏览器上下文，彻底清空 Pinia 和所有组件内存，防止数据泄露。
+            window.location.href = '/login'; 
+        }, 1000);
     } catch (error) { }
 };
 

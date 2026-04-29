@@ -174,7 +174,8 @@ const handleSubmit = async () => {
             }
 
             showToast({ type: 'success', message: '登录成功' });
-            router.push('/home'); // 跳转到首页
+            // 强制跳转到首页，使用 replace 避免返回到登录页
+            await router.replace('/home');
         } else {
             await registerApi({
                 phone: formData.phone,
