@@ -76,6 +76,7 @@ import { loginApi, registerApi } from '@/api/auth';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 import Toast from '@/components/Toast.vue';
+import { getUserIdFromToken } from '@/utils/jwt';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -171,16 +172,8 @@ const handleSubmit = async () => {
             // 2. 保存 Token
             userStore.setToken(tokenStr);
 
-            // 🌟 3. 核心：解析 Token 截取用户 ID
-            // tokenStr 格式假设为: "eyJhbGciOi...J9.user_2042071018258526210"
-            let extractedId = '';
-            if (tokenStr && tokenStr.includes('.user_')) {
-                // 用 '.user_' 把字符串切成两半，取后面那一半就是 ID
-                extractedId = tokenStr.split('.user_')[1];
-            } else {
-                // 容错处理，万一 token 格式变了
-                console.warn('Token 格式不符合预期，未能提取到 ID');
-            }
+            // 🌟 3. 核心：解析 JWT Token，解码 payload 提取 userId
+            const extractedId = getUserIdFromToken(tokenStr) || '';
 
             // 🌟 4. 把截取到的 ID 存进 UserInfo
             userStore.setUserInfo({

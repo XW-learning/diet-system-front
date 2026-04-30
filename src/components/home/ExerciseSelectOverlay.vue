@@ -68,6 +68,7 @@ import { getExCategoryList, getExerciseList } from '@/api/exercise';
 import { doExerciseCheckIn } from '@/api/checkin';
 import SelectedExerciseCart from '@/components/home/SelectedExerciseCart.vue';
 import Toast from '@/components/Toast.vue';
+import { getUserIdFromToken } from '@/utils/jwt';
 
 const emit = defineEmits(['close', 'refresh']);
 const router = useRouter();
@@ -252,8 +253,7 @@ const submitCheckIn = async () => {
 
     let userId = localStorage.getItem('userId');
     if (!userId) {
-        const token = localStorage.getItem('token');
-        userId = token ? token.split('user_')[1] : null;
+        userId = getUserIdFromToken(localStorage.getItem('token'));
     }
     if (!userId) {
         toastRef.value?.show('登录已过期');

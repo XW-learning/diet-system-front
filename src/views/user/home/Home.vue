@@ -69,6 +69,7 @@ import BottomNavBar from '@/components/home/BottomNavBar.vue';
 import { getUserInfoApi } from '@/api/auth';
 import { getBodyRecordListApi } from '@/api/body';
 import type { UserVO } from '@/api/auth';
+import { getUserIdFromToken } from '@/utils/jwt';
 
 // 状态控制
 const isSearching = ref(false);
@@ -126,7 +127,7 @@ const fetchBodyRecords = async () => {
 onMounted(async () => {
     const token = localStorage.getItem('token');
     if (token) {
-        const userId = token.split('user_')[1];
+        const userId = getUserIdFromToken(token);
         if (userId) {
             const data = await getUserInfoApi(userId);
             userInfo.value = data;

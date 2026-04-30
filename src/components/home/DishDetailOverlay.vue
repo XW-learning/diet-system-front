@@ -75,6 +75,7 @@ import { ref } from 'vue';
 import RecordBottomSheet from '@/components/home/RecordBottomSheet.vue';
 import Toast from '@/components/Toast.vue';
 import { doMealCheckIn } from '@/api/checkin';
+import { getUserIdFromToken } from '@/utils/jwt';
 
 const props = defineProps({
     dish: { type: Object, required: true }
@@ -93,8 +94,7 @@ const handleRecordSubmit = async (recordData: any) => {
         let userId = localStorage.getItem('userId');
 
         if (!userId) {
-            const token = localStorage.getItem('token');
-            userId = token ? token.split('user_')[1] : null;
+            userId = getUserIdFromToken(localStorage.getItem('token'));
         }
 
         if (!userId) {

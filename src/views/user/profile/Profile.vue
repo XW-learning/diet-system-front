@@ -142,6 +142,7 @@ import Toast from '@/components/Toast.vue';
 import { getUserInfoApi, updateUserInfoApi, logoutApi, uploadApi } from '@/api/auth';
 import type { UserVO } from '@/api/auth';
 import defaultAvatar from '@/assets/avatar.jpg';
+import { getUserIdFromToken } from '@/utils/jwt';
 
 // 🌟 注册 close 事件
 const emit = defineEmits(['close']);
@@ -158,17 +159,13 @@ const editState = reactive({
     tempValue: '' as string | number
 });
 
-const getUserIdFromToken = (): string | null => {
-    const token = localStorage.getItem('token');
-    if (token && token.includes('user_')) {
-        return String(token.split('user_')[1]);
-    }
-    return null;
+const parseUserIdFromToken = (): string | null => {
+    return getUserIdFromToken(localStorage.getItem('token'));
 };
 
 const loadUserInfo = async () => {
     try {
-        const userId = localStorage.getItem('userId') || getUserIdFromToken();
+        const userId = localStorage.getItem('userId') || parseUserIdFromToken();
         if (!userId) return router.push('/login');
 
         const data = await getUserInfoApi(userId);

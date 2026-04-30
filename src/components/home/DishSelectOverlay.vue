@@ -82,6 +82,7 @@ import type { CategoryVO, DishVO } from '@/types/dish';
 import type { MealCheckInDTO } from '@/api/checkin';
 import SelectedFoodCart from '@/components/home/SelectedFoodCart.vue';
 import Toast from '@/components/Toast.vue';
+import { getUserIdFromToken } from '@/utils/jwt';
 
 const emit = defineEmits(['close', 'refresh']);
 const router = useRouter();
@@ -264,8 +265,7 @@ const submitCheckIn = async () => {
 
     let userId = localStorage.getItem('userId');
     if (!userId) {
-        const token = localStorage.getItem('token');
-        userId = token ? token.split('user_')[1] : null;
+        userId = getUserIdFromToken(localStorage.getItem('token'));
     }
     if (!userId) { toastRef.value?.show('登录已过期'); return; }
 

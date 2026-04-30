@@ -93,6 +93,7 @@ import { ref, onMounted, markRaw, nextTick, onUnmounted } from 'vue';
 import * as echarts from 'echarts';
 import { getDailyAnalysis } from '@/api/checkin';
 import type { CheckInAnalysisVO } from '@/api/checkin';
+import { getUserIdFromToken } from '@/utils/jwt';
 
 const emit = defineEmits(['close']);
 const loading = ref(true);
@@ -120,8 +121,7 @@ const loadData = async () => {
     try {
         let userId = localStorage.getItem('userId');
         if (!userId) {
-            const token = localStorage.getItem('token');
-            userId = token ? token.split('user_')[1] : null;
+            userId = getUserIdFromToken(localStorage.getItem('token'));
         }
 
         const date = new Date().toISOString().split('T')[0];

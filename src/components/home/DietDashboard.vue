@@ -64,6 +64,7 @@ import { showToast } from 'vant';
 import { getCheckInSummary } from '@/api/checkin';
 import type { CheckInSummary } from '@/types/diet';
 import type { UserVO } from '@/api/auth';
+import { getUserIdFromToken } from '@/utils/jwt';
 
 
 const emit = defineEmits(['open-action', 'open-analysis']);
@@ -90,14 +91,10 @@ const remainingCalories = computed(() => {
 });
 
 /**
- * token解析用户ID
+ * 从JWT中解析用户ID
  */
-const getUserIdFromToken = (): string | null => {
-    const token = localStorage.getItem('token');
-    if (token && token.includes('user_')) {
-        return String(token.split('user_')[1]);
-    }
-    return null;
+const parseUserIdFromToken = (): string | null => {
+    return getUserIdFromToken(localStorage.getItem('token'));
 };
 
 /**
@@ -105,7 +102,7 @@ const getUserIdFromToken = (): string | null => {
  */
 const fetchSummaryData = async () => {
     try {
-        const currentUserId = props.user?.id || getUserIdFromToken();
+        const currentUserId = props.user?.id || parseUserIdFromToken();
 
         if (!currentUserId) return;
 

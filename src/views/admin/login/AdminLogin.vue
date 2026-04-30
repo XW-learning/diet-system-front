@@ -61,6 +61,7 @@ import { useRouter } from 'vue-router';
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
 import { adminLoginApi } from '@/api/admin';
 import { useAdminStore } from '@/stores/admin';
+import { getAdminIdFromToken } from '@/utils/jwt';
 
 const router = useRouter();
 const adminStore = useAdminStore();
@@ -111,8 +112,8 @@ const handleLogin = async () => {
     // 保存Token到Store和localStorage
     adminStore.setToken(token);
 
-    // 获取管理员信息（从token中解析ID）
-    const adminId = extractAdminId(token);
+    // 获取管理员信息（从JWT中解析adminId）
+    const adminId = getAdminIdFromToken(token);
     if (adminId) {
       await adminStore.fetchAdminInfo(adminId);
     }
@@ -131,22 +132,6 @@ const handleLogin = async () => {
   }
 };
 
-/**
- * 从Token中提取管理员ID
- */
-const extractAdminId = (token: string): string | null => {
-  try {
-    // Token 格式: "admin_token_1"
-    if (token.startsWith('admin_token_')) {
-      const id = token.replace('admin_token_', '');
-      return id || null;
-    }
-    // 如果是JWT，需要解码获取ID
-    return null;
-  } catch {
-    return null;
-  }
-};
 </script>
 
 <style scoped>

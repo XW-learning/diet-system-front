@@ -101,6 +101,7 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
 import { User, Lock } from '@element-plus/icons-vue';
 import { useAdminStore } from '@/stores/admin';
 import { updateAdminPasswordApi } from '@/api/admin';
+import { getAdminIdFromToken } from '@/utils/jwt';
 
 const adminStore = useAdminStore();
 
@@ -233,7 +234,7 @@ onMounted(async () => {
   
   // 如果store中没有管理员信息,尝试获取
   if (!adminStore.adminInfo && adminStore.token) {
-    const adminId = extractAdminId(adminStore.token);
+    const adminId = getAdminIdFromToken(adminStore.token);
     console.log('提取的 adminId:', adminId);
     
     if (adminId) {
@@ -253,21 +254,7 @@ onMounted(async () => {
   }
 });
 
-/**
- * 从Token中提取管理员ID
- */
-const extractAdminId = (token: string): string | null => {
-  try {
-    // Token 格式: "admin_token_1"
-    if (token.startsWith('admin_token_')) {
-      const id = token.replace('admin_token_', '');
-      return id || null;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-};
+
 </script>
 
 <style scoped>
