@@ -17,10 +17,9 @@
 <script setup lang="ts">
 import StatusBar from '@/components/StatusBar.vue';
 import { onMounted, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 
-const route = useRoute()
-const router = useRouter() // 🌟 引入 router
+const router = useRouter()
 const transitionName = ref('')
 
 // 🌟 定义底部 Tab 的空间顺序，用于判断左右滑动方向

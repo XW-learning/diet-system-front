@@ -145,12 +145,12 @@ import defaultAvatar from '@/assets/avatar.jpg';
 import { getUserIdFromToken } from '@/utils/jwt';
 import { useUserStore } from '@/stores/user';
 
-// 🌟 注册 close 事件
-const emit = defineEmits(['close']);
+// 🌟 注册 close、refresh 事件
+const emit = defineEmits(['close', 'refresh']);
 const router = useRouter();
 const toastRef = ref<any>(null);
 const userInfo = ref<UserVO | null>(null);
-    const userStore = useUserStore();
+const userStore = useUserStore();
 
 const vFocus = {
     mounted: (el: HTMLElement) => el.focus()
@@ -189,6 +189,7 @@ const saveUserInfo = async (updateData: Partial<UserVO>) => {
         await updateUserInfoApi(payload);
         toastRef.value.show('修改成功');
         await loadUserInfo();
+        emit('refresh'); // 通知父组件数据已更新
     } catch (error) {
         toastRef.value.show('保存失败，请重试', 'error');
     }

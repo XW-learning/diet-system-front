@@ -40,7 +40,7 @@
         </transition>
 
         <transition name="slide-page">
-            <Profile v-if="showProfile" @close="showProfile = false" />
+            <Profile v-if="showProfile" @close="showProfile = false" @refresh="loadUserData" />
         </transition>
 
         <transition name="slide-page">
@@ -127,18 +127,21 @@ const fetchBodyRecords = async () => {
     } catch (error) { console.error('获取身材记录失败:', error); }
 };
 
-onMounted(async () => {
+// 加载用户数据（供 onMounted 和 Profile@refresh 共用）
+const loadUserData = async () => {
     const token = localStorage.getItem('token');
     if (token) {
         const userId = getUserIdFromToken(token);
         if (userId) {
             const data = await getUserInfoApi(userId);
-            // 🌟 3. 首页初始化时，也将数据存入 Store，而不是存给本地变量
+            userInfo.value = data;
             userStore.setUserInfo(data);
             await fetchBodyRecords();
         }
     }
-});
+};
+
+onMounted(loadUserData);
 </script>
 
 <style scoped>
