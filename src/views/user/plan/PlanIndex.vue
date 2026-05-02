@@ -113,7 +113,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+
 import { searchPlans } from '@/api/plan'
 import PlanCard from '@/components/plan/PlanCard.vue'
 import BottomNavBar from '@/components/home/BottomNavBar.vue';
@@ -121,7 +121,7 @@ import { usePlanStore } from '@/stores/plan';
 import Toast from '@/components/Toast.vue';
 
 const planStore = usePlanStore();
-const router = useRouter();
+
 const toastRef = ref<InstanceType<typeof Toast> | null>(null);
 
 const mealTypes = [

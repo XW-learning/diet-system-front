@@ -143,12 +143,14 @@ import { getUserInfoApi, updateUserInfoApi, logoutApi, uploadApi } from '@/api/a
 import type { UserVO } from '@/api/auth';
 import defaultAvatar from '@/assets/avatar.jpg';
 import { getUserIdFromToken } from '@/utils/jwt';
+import { useUserStore } from '@/stores/user';
 
 // 🌟 注册 close 事件
 const emit = defineEmits(['close']);
 const router = useRouter();
 const toastRef = ref<any>(null);
 const userInfo = ref<UserVO | null>(null);
+    const userStore = useUserStore();
 
 const vFocus = {
     mounted: (el: HTMLElement) => el.focus()
@@ -169,7 +171,12 @@ const loadUserInfo = async () => {
         if (!userId) return router.push('/login');
 
         const data = await getUserInfoApi(userId);
-        if (data) userInfo.value = data;
+        if (data) {
+            userInfo.value = data; // 更新当前页面的渲染
+            // 🌟 3. 关键修复：同步更新到全局的 Pinia 和 localStorage 中！
+            // 这样首页的 HomeHeader 绑定的数据才会实时刷新
+            userStore.setUserInfo(data);
+        }
     } catch (error) {
         console.error('获取个人信息失败', error);
     }

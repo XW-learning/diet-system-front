@@ -174,37 +174,69 @@ onMounted(() => { scheduleMidnightRefresh(); });
   transform: translateX(100%);
 }
 
-/* ================= 情况 C：一级页面之间 (平级 Tab) 纯左右平移 ================= */
+/* ================= 情况 C：一级页面之间 (微距平移 + 渐隐渐现) ================= */
 .tab-slide-left-enter-active,
 .tab-slide-left-leave-active,
 .tab-slide-right-enter-active,
 .tab-slide-right-leave-active {
-  transition: transform 0.3s cubic-bezier(0.3, 0.1, 0.3, 1);
-  /* 稍微快一点点，符合 Tab 切换直觉 */
+  /* 🌟 核心改进：
+     1. transition 监听所有属性 (all) 以包含 opacity
+     2. 增加时间到 0.4s 保证动画看清
+     3. 引入 cubic-bezier(0.1, 0.9, 0.2, 1) 实现类似“一脚急刹车”的从快到慢极速缓动效果 
+  */
+  transition: all 0.4s cubic-bezier(0.1, 0.9, 0.2, 1);
   position: absolute;
   width: 100%;
   height: 100%;
   top: 0;
   left: 0;
   z-index: 1;
-  /* 平级不分上下层，统一层级 */
 }
 
-/* 往右侧 Tab 切 (例如 首页->食谱)：新页面从右侧进入，老页面向左侧完全移出 */
+/* ---------- 往右侧 Tab 切 (如 首页 -> 食谱)：画面整体向左滑动 ---------- */
+/* 新页面从右边 10% 的位置，由透明变实体进入 */
 .tab-slide-left-enter-from {
-  transform: translateX(100%);
+  transform: translateX(10%);
+  opacity: 0;
+}
+
+.tab-slide-left-enter-to {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+/* 老页面向左边退去，移动 10% 并逐渐消失 */
+.tab-slide-left-leave-from {
+  transform: translateX(0);
+  opacity: 1;
 }
 
 .tab-slide-left-leave-to {
-  transform: translateX(-100%);
+  transform: translateX(-10%);
+  opacity: 0;
 }
 
-/* 往左侧 Tab 切 (例如 食谱->首页)：新页面从左侧进入，老页面向右侧完全移出 */
+
+/* ---------- 往左侧 Tab 切 (如 食谱 -> 首页)：画面整体向右滑动 ---------- */
+/* 新页面从左边 10% 的位置，由透明变实体进入 */
 .tab-slide-right-enter-from {
-  transform: translateX(-100%);
+  transform: translateX(-10%);
+  opacity: 0;
+}
+
+.tab-slide-right-enter-to {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+/* 老页面向右边退去，移动 10% 并逐渐消失 */
+.tab-slide-right-leave-from {
+  transform: translateX(0);
+  opacity: 1;
 }
 
 .tab-slide-right-leave-to {
-  transform: translateX(100%);
+  transform: translateX(10%);
+  opacity: 0;
 }
 </style>

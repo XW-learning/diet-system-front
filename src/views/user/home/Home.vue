@@ -69,6 +69,8 @@ import BottomNavBar from '@/components/home/BottomNavBar.vue';
 import { getUserInfoApi } from '@/api/auth';
 import { getBodyRecordListApi } from '@/api/body';
 import type { UserVO } from '@/api/auth';
+// 🌟 1. 引入 store
+import { useUserStore } from '@/stores/user';
 import { getUserIdFromToken } from '@/utils/jwt';
 
 // 状态控制
@@ -83,6 +85,7 @@ const userInfo = ref<UserVO | null>(null);
 const selectedMealType = ref(2);
 const bodyRecords = ref<any[]>([]);
 const refreshTick = ref(0);
+const userStore = useUserStore();
 
 // 🌟 修改：将 showCalendar 纳入整体 Overlay 判断
 const isOverlayOpen = computed(() => {
@@ -130,7 +133,8 @@ onMounted(async () => {
         const userId = getUserIdFromToken(token);
         if (userId) {
             const data = await getUserInfoApi(userId);
-            userInfo.value = data;
+            // 🌟 3. 首页初始化时，也将数据存入 Store，而不是存给本地变量
+            userStore.setUserInfo(data);
             await fetchBodyRecords();
         }
     }
