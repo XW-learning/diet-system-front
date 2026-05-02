@@ -9,7 +9,7 @@
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
             </div>
-            <div class="header-title" v-if="isScrolled">{{ planInfo.name || '16+8轻断食食谱' }}</div>
+            <div class="header-title" v-if="isScrolled">{{ planInfo.name || '食谱详情' }}</div>
             <div class="placeholder-box" v-if="isScrolled"></div>
         </div>
 
@@ -17,22 +17,21 @@
             <img :src="planInfo.coverImage || 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=600&q=80'"
                 class="cover-img" />
             <div class="meta-overlay">
-                <div class="plan-title-large">{{ planInfo.name || '16+8轻断食食谱' }}</div>
+                <div class="plan-title-large">{{ planInfo.name || '' }}</div>
                 <div class="stats-row">
-                    <span>🕒 {{ planInfo.duration || 7 }}天</span>
-                    <span>📉 效果{{ planInfo.weightLoss || '3-8斤' }}</span>
-                    <span>🔥 {{ planInfo.usageCount || 114640 }}人使用过</span>
+                    <span v-if="planInfo.duration">🕒 {{ planInfo.duration }}天</span>
+                    <span v-if="planInfo.weightLoss">📉 效果{{ planInfo.weightLoss }}</span>
+                    <span v-if="planInfo.usageCount != null">🔥 {{ formatUsageCount(planInfo.usageCount) }}人使用过</span>
                 </div>
                 <div class="tags">
-                    <span class="tag" v-for="tag in (planInfo.tagList || ['限时进食', '不节食', '代谢转换'])" :key="tag">{{ tag
-                        }}</span>
+                    <span class="tag" v-for="tag in (planInfo.tagList || [])" :key="tag">{{ tag }}</span>
                 </div>
             </div>
         </div>
 
         <div class="day-selector-wrapper">
             <div class="day-tabs">
-                <div class="tab" v-for="day in (planInfo.duration || 7)" :key="day"
+                <div class="tab" v-for="day in totalDays" :key="day"
                     :class="{ active: currentDay === day }" @click="currentDay = day">
                     第{{ day }}天
                 </div>
@@ -89,12 +88,14 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { usePlanStore } from '@/stores/plan';
 import { useRouter, useRoute } from 'vue-router';
+import { getPlanDetail } from '@/api/plan';
 
 const planStore = usePlanStore();
 const router = useRouter();
 const route = useRoute();
 
 const planInfo = ref<any>({});
+const allMeals = ref<any[]>([]);
 const currentDay = ref(1);
 const isScrolled = ref(false);
 
@@ -102,65 +103,113 @@ const handleScroll = () => {
     isScrolled.value = window.scrollY > 50;
 };
 
-onMounted(() => {
-    window.addEventListener('scroll', handleScroll);
-});
-onUnmounted(() => {
-    window.removeEventListener('scroll', handleScroll);
-});
-
 const goBack = () => {
     router.back();
 };
 
-// Mock grouped meals based on prototype 3
-const groupedMeals = computed(() => [
-    {
-        type: 1, name: '早餐', icon: '🍞', totalCalories: 350, carbs: 40, protein: 15, fat: 10,
-        dishes: [
-            { id: 1, name: '蒸红薯', image: 'https://images.unsplash.com/photo-1596450514735-e152bbdc32ce?auto=format&fit=crop&w=100&q=80', amount: '1个(小)', weight: 200, calories: 132 },
-            { id: 2, name: '煮鸡蛋', image: 'https://images.unsplash.com/photo-1587486913049-53fc88980cfc?auto=format&fit=crop&w=100&q=80', amount: '1个(中)', weight: 60, calories: 86 },
-            { id: 3, name: '杂粮豆浆', image: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=100&q=80', amount: '1中杯', weight: 200, calories: 84 }
-        ]
-    },
-    {
-        type: 2, name: '午餐', icon: '🍲', totalCalories: 450, carbs: 55, protein: 25, fat: 12,
-        dishes: [
-            { id: 4, name: '蔬菜沙拉', image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=100&q=80', amount: '1大份', weight: 300, calories: 120 },
-            { id: 5, name: '鸡胸肉', image: 'https://images.unsplash.com/photo-1532550907401-8500c28f0225?auto=format&fit=crop&w=100&q=80', amount: '1块', weight: 150, calories: 165 },
-            { id: 6, name: '糙米饭', image: 'https://images.unsplash.com/photo-1536304929831-ee1ca9d44906?auto=format&fit=crop&w=100&q=80', amount: '1小碗', weight: 100, calories: 110 }
-        ]
-    },
-    {
-        type: 3, name: '晚餐', icon: '🥗', totalCalories: 350, carbs: 30, protein: 20, fat: 10,
-        dishes: [
-            { id: 7, name: '大拌菜', image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=100&q=80', amount: '1大份', weight: 250, calories: 80 },
-            { id: 8, name: '西红柿', image: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=100&q=80', amount: '1个(中)', weight: 150, calories: 30 },
-            { id: 9, name: '紫菜蛋花汤', image: 'https://images.unsplash.com/photo-1548943487-a2e4d43b4850?auto=format&fit=crop&w=100&q=80', amount: '1小碗', weight: 200, calories: 45 }
-        ]
-    },
-    {
-        type: 4, name: '加餐', icon: '🍏', totalCalories: 200, carbs: 20, protein: 5, fat: 5,
-        dishes: [
-            { id: 10, name: '酸奶', image: 'https://images.unsplash.com/photo-1563379926898-05f4575a45d8?auto=format&fit=crop&w=100&q=80', amount: '1小杯', weight: 150, calories: 110 },
-            { id: 11, name: '草莓', image: 'https://images.unsplash.com/photo-1518635017498-87f514b751ba?auto=format&fit=crop&w=100&q=80', amount: '10颗', weight: 150, calories: 48 }
-        ]
+const mealTypeMap: Record<number, { name: string; icon: string }> = {
+    1: { name: '早餐', icon: '🍞' },
+    2: { name: '午餐', icon: '🍲' },
+    3: { name: '晚餐', icon: '🥗' },
+    4: { name: '加餐', icon: '🍏' }
+};
+
+const totalDays = computed(() => {
+    if (allMeals.value.length > 0) {
+        const days = allMeals.value.map((m: any) => m.dayNumber);
+        return Math.max(...days);
     }
-]);
+    return planInfo.value.duration || 7;
+});
+
+const groupedMeals = computed(() => {
+    const dayMeals = allMeals.value.filter((m: any) => m.dayNumber === currentDay.value);
+
+    const groups: Record<number, any> = {};
+
+    for (const meal of dayMeals) {
+        const mt = meal.mealType;
+        if (!groups[mt]) {
+            const typeInfo = mealTypeMap[mt] || { name: '其他', icon: '🍽️' };
+            groups[mt] = {
+                type: mt,
+                name: typeInfo.name,
+                icon: typeInfo.icon,
+                totalCalories: 0,
+                carbs: 0,
+                protein: 0,
+                fat: 0,
+                dishes: [] as any[]
+            };
+        }
+        groups[mt].totalCalories += meal.calorie || 0;
+        groups[mt].carbs += Math.round(meal.carbohydrate || 0);
+        groups[mt].protein += Math.round(meal.protein || 0);
+        groups[mt].fat += Math.round(meal.fat || 0);
+        groups[mt].dishes.push({
+            id: meal.dishId,
+            name: meal.dishName,
+            image: meal.dishImage || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=100&q=80',
+            amount: meal.description || meal.cookMethod || '1份',
+            weight: Math.round(meal.weight || 0),
+            calories: meal.calorie
+        });
+    }
+
+    return [1, 2, 3, 4]
+        .filter(mt => groups[mt])
+        .map(mt => groups[mt]);
+});
 
 const totalDailyCals = computed(() => groupedMeals.value.reduce((sum, m) => sum + m.totalCalories, 0));
 const totalCarbs = computed(() => groupedMeals.value.reduce((sum, m) => sum + m.carbs, 0));
 const totalProtein = computed(() => groupedMeals.value.reduce((sum, m) => sum + m.protein, 0));
 const totalFat = computed(() => groupedMeals.value.reduce((sum, m) => sum + m.fat, 0));
 
+const loadDetail = async () => {
+    try {
+        const planId = Array.isArray(route.params.id) ? route.params.id[0] : route.params.id;
+        const res = await getPlanDetail(planId);
+
+        if (res && res.plan) {
+            const plan = res.plan;
+            planInfo.value = {
+                ...plan,
+                tagList: plan.tags ? plan.tags.split(',') : []
+            };
+            allMeals.value = res.meals || [];
+
+            if (allMeals.value.length > 0) {
+                currentDay.value = allMeals.value[0].dayNumber;
+            }
+        }
+    } catch (error) {
+        console.error('获取方案详情失败:', error);
+    }
+};
+
 const startPlan = () => {
     planStore.setActivePlan({
         id: route.params.id,
-        title: planInfo.value.name || '16+8轻断食食谱',
+        title: planInfo.value.name || '食谱计划',
         meals: groupedMeals.value
     });
     router.push('/plan');
 };
+
+const formatUsageCount = (count: number) => {
+    if (count === null || count === undefined) return '0';
+    if (count >= 10000) return (count / 10000).toFixed(1) + 'w';
+    return count.toString();
+};
+
+onMounted(() => {
+    window.addEventListener('scroll', handleScroll);
+    loadDetail();
+});
+onUnmounted(() => {
+    window.removeEventListener('scroll', handleScroll);
+});
 </script>
 
 <style scoped>
