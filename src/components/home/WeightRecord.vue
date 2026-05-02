@@ -3,19 +3,19 @@
         <div class="top-section">
             <div class="full-left">
                 <div class="w-header">
-                    <div class="w-icon" style="background: #E8F5E9; color: #4CAF50;">⚖️</div>
+                    <div class="w-icon" style="background: #E8F5E9; color: #4CAF50;">体</div>
                     <div class="w-title">体重记录</div>
                 </div>
                 <div class="w-main" style="margin-top: 15px;">
                     <span class="w-val">{{ currentWeight > 0 ? currentWeight.toFixed(1) : '--' }}</span>
-                    <span class="w-unit">公斤</span>
+                    <span class="w-unit">kg</span>
                 </div>
                 <div class="w-desc" style="color: #66BB6A; font-weight: 600;">
                     BMI {{ currentBmi > 0 ? currentBmi.toFixed(1) : '--' }} {{ bmiStatusText }}
                 </div>
             </div>
             <div class="full-right">
-                <button class="record-btn" @click="openRecordPopup">记体重</button>
+                <button class="record-btn" @click="openRecordPopup">记录</button>
             </div>
         </div>
 
@@ -34,21 +34,20 @@
             <transition name="fade">
                 <div class="overlay" v-if="showRecordPopup" @click="closeRecordPopup"></div>
             </transition>
-
             <transition name="slide-up">
                 <div class="popup-container" v-if="showRecordPopup">
                     <div class="popup-header">
-                        <span class="popup-title">身材打卡</span>
+                        <span class="popup-title">记录体重</span>
                         <button class="close-btn" @click="closeRecordPopup">×</button>
                     </div>
-
                     <div class="popup-content">
                         <div class="record-section">
-                            <div class="unit-switch">
-                                <div class="switch-item" :class="{ active: currentUnit === 'kg' }"
-                                    @click="currentUnit = 'kg'">公斤 (kg)</div>
-                                <div class="switch-item" :class="{ active: currentUnit === 'jin' }"
-                                    @click="currentUnit = 'jin'">斤</div>
+                            <!-- 分成两个按钮 -->
+                            <div class="unit-buttons">
+                                <button class="unit-btn" :class="{ active: currentUnit === 'kg' }"
+                                    @click="currentUnit = 'kg'">千克(kg)</button>
+                                <button class="unit-btn" :class="{ active: currentUnit === 'jin' }"
+                                    @click="currentUnit = 'jin'">斤</button>
                             </div>
 
                             <div class="slider-value-display">
@@ -56,6 +55,7 @@
                                 <span class="unit">{{ currentUnit === 'kg' ? 'kg' : '斤' }}</span>
                             </div>
 
+                            <!-- 尺子滑动块容器 -->
                             <div class="ruler-container">
                                 <input type="range" class="weight-slider" :min="currentUnit === 'kg' ? 30 : 60"
                                     :max="currentUnit === 'kg' ? 150 : 300" step="0.1" v-model.number="displayWeight">
@@ -63,16 +63,14 @@
                             </div>
                         </div>
                     </div>
-
                     <div class="popup-footer">
                         <button class="confirm-btn" @click="confirmRecord" :disabled="isSubmitting">
-                            {{ isSubmitting ? '打卡中...' : '打卡' }}
+                            {{ isSubmitting ? '保存中...' : '确认保存' }}
                         </button>
                     </div>
                 </div>
             </transition>
         </Teleport>
-
         <Toast ref="toastRef" />
     </div>
 </template>
@@ -83,70 +81,64 @@ import { saveBodyRecordApi } from '@/api/body';
 import Toast from '@/components/Toast.vue';
 
 const props = defineProps<{
-    records: any[]; // 🌟 由 Home.vue 传进来的身材记录列表
+    records: any[];
     userId?: string;
 }>();
 
 const emit = defineEmits(['refresh']);
+
 const toastRef = ref();
 
-// === 提取最新数据 (数组第一项) ===
 const currentWeight = computed(() => {
     return props.records && props.records.length > 0 ? props.records[0].weight : 0;
 });
-// 打印最新数据
+
 const currentBmi = computed(() => {
     return props.records && props.records.length > 0 ? props.records[0].bmi : 0;
 });
+
 const bmiStatusText = computed(() => {
     const val = currentBmi.value;
-    if (!val || val === 0) return '暂无数据';
+    if (!val || val === 0) return '无数据';
     if (val < 18.5) return '偏瘦';
     if (val < 24) return '正常';
     if (val < 28) return '偏胖';
     return '肥胖';
 });
 
-// === 🌟 核心：动态计算本周打卡记录与柱状图高度 ===
 const weekData = computed(() => {
     const daysName = ['日', '一', '二', '三', '四', '五', '六'];
     const today = new Date();
     const result = [];
-
-    // 获取本周一
     const currentDay = today.getDay();
     const diffToMonday = currentDay === 0 ? 6 : currentDay - 1;
     const monday = new Date(today);
     monday.setDate(today.getDate() - diffToMonday);
 
-    // 假设柱状图最大显示比例的基准体重为 100kg (可根据实际需求调整)
     const baseWeight = 100;
 
     for (let i = 0; i < 7; i++) {
         const date = new Date(monday);
         date.setDate(monday.getDate() + i);
-        // 格式化为 YYYY-MM-DD
+
         const dateStr = date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
         const isTodayDate = date.toDateString() === today.toDateString();
 
-        // 查找该日期对应的记录
         const dayRecord = props.records.find(r => r.recordTime && r.recordTime.startsWith(dateStr));
-
         const isRecorded = !!dayRecord;
-        // 计算高度百分比：(当天体重 / 基准) * 100，最低给个 30% 保证视觉效果
+
         const heightPercentage = isRecorded ? Math.max((dayRecord.weight / baseWeight) * 100, 30) : 0;
 
         result.push({
             day: daysName[date.getDay()],
             isRecorded,
             isToday: isTodayDate,
-            heightPercentage: Math.min(heightPercentage, 100) // 不超过 100%
+            heightPercentage: Math.min(heightPercentage, 100)
         });
     }
     return result;
 });
 
-// === 弹窗与打卡逻辑 ===
 const showRecordPopup = ref(false)
 const tempWeightKg = ref(60.0)
 const currentUnit = ref<'kg' | 'jin'>('kg')
@@ -155,50 +147,46 @@ const isSubmitting = ref(false);
 const displayWeight = computed({
     get() { return currentUnit.value === 'kg' ? tempWeightKg.value : tempWeightKg.value * 2; },
     set(newVal: number) { tempWeightKg.value = currentUnit.value === 'kg' ? newVal : newVal / 2; }
-})
+});
 
 const openRecordPopup = () => {
     tempWeightKg.value = currentWeight.value > 0 ? currentWeight.value : 60.0;
     showRecordPopup.value = true
     document.body.style.overflow = 'hidden'
-}
+};
 
 const closeRecordPopup = () => {
     showRecordPopup.value = false
     document.body.style.overflow = ''
-}
+};
 
 const confirmRecord = async () => {
     if (!props.userId) {
-        toastRef.value?.show('用户未登录', 'warning');
+        toastRef.value?.show('请先登录', 'warning');
         return;
     }
+
     isSubmitting.value = true;
     try {
-        // 🌟 1. 提取当前最新的完整记录
         const latestRecord = props.records && props.records.length > 0 ? props.records[0] : {};
 
-        // 🌟 2. 构建全量 payload
         await saveBodyRecordApi({
             userId: props.userId,
-            weight: tempWeightKg.value,             // 使用用户刚刚滑动选择的新体重
-            height: latestRecord.height || 170.0,   // 保留原有身高
-
-            // 关键修复：把之前的围度数据带上，防止被覆盖成空！
-            waist: latestRecord.waist || 0,
+            weight: tempWeightKg.value,
+            height: latestRecord.height || 170.0,
             hip: latestRecord.hip || 0,
             chest: latestRecord.chest || 0
         });
 
-        toastRef.value?.show('打卡成功', 'success');
+        toastRef.value?.show('体重记录成功', 'success');
         closeRecordPopup();
-        emit('refresh'); // 触发 Home.vue 刷新数据
+        emit('refresh');
     } catch (error: any) {
-        toastRef.value?.show(error.message || '保存失败', 'error');
+        toastRef.value?.show(error.message || '记录失败', 'error');
     } finally {
         isSubmitting.value = false;
     }
-}
+};
 </script>
 
 <style scoped>
@@ -338,28 +326,38 @@ const confirmRecord = async () => {
     margin-bottom: 30px;
 }
 
-.unit-switch {
+.record-section {
+    width: 100%;
     display: flex;
-    background: #F5F5F5;
-    border-radius: 20px;
-    padding: 4px;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* 新的单位按钮样式 */
+.unit-buttons {
+    display: flex;
+    width: 100%;
+    gap: 15px;
     margin-bottom: 15px;
 }
 
-.switch-item {
-    padding: 6px 16px;
+.unit-btn {
+    flex: 1;
+    padding: 10px 0;
     font-size: 14px;
-    color: #666;
-    border-radius: 16px;
+    color: #66BB6A;
+    background: #FFFFFF;
+    border: 1px solid #66BB6A;
+    border-radius: 12px;
     cursor: pointer;
     transition: all 0.3s;
 }
 
-.switch-item.active {
-    background: #FFFFFF;
-    color: #66BB6A;
+.unit-btn.active {
+    background: #66BB6A;
+    color: #FFFFFF;
     font-weight: bold;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 12px rgba(102, 187, 106, 0.3);
 }
 
 .slider-value-display {
@@ -373,6 +371,7 @@ const confirmRecord = async () => {
     font-weight: bold;
     color: #66BB6A;
     font-family: 'Courier New', Courier, monospace;
+    margin-top: 40px;
 }
 
 .slider-value-display .unit {
@@ -382,6 +381,7 @@ const confirmRecord = async () => {
     font-weight: bold;
 }
 
+/* 尺子滑动块样式 - 与 WaistRecord 保持完全一致的布局长度 */
 .ruler-container {
     width: 100%;
     position: relative;
