@@ -53,12 +53,18 @@ const goToDetail = (id: number | string) => {
     });
 };
 // 辅助函数：格式化人数 (如 12500 -> 1.2w)
+// ⭐ 修改 PlanCard.vue 中的 formatCount 方法
 const formatCount = (count: number) => {
-    if (count >= 10000) {
-        return (count / 10000).toFixed(1) + 'w'
+    // 【关键修复3】增加容错防御：如果 count 为空，直接返回 '0'
+    if (count === null || count === undefined) {
+        return '0';
     }
-    return count.toString()
-}
+
+    if (count >= 10000) {
+        return (count / 10000).toFixed(1) + 'w';
+    }
+    return count.toString();
+};
 </script>
 
 <style scoped>

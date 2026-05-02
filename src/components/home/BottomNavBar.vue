@@ -16,7 +16,7 @@
                         <Food />
                     </el-icon>
                 </div>
-                <span class="label">菜谱</span>
+                <span class="label">食谱</span>
             </div>
 
             <div class="nav-item" :class="{ active: isPage('/community') }" @click="router.push('/community')">

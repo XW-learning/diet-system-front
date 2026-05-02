@@ -50,13 +50,11 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('@/components/home/SearchOverlay.vue'),
     meta: { requiresAuth: true, depth: 2 }
   },
-  // 在 src/router/index.ts 中找到关于 plan 的路由配置部分添加：
-
   {
     path: '/plan/detail/:id',
     name: 'PlanDetail',
     component: () => import('@/components/plan/PlanDetail.vue'),
-    meta: { title: '计划详情' }
+    meta: { requiresAuth: true, depth: 2, title: '计划详情' }
   },
 
   // ==================== 管理员路由 (保持嵌套结构) ====================

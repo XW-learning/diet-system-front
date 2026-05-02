@@ -1,86 +1,109 @@
+// filepath: views/user/plan/PlanIndex.vue
 <template>
     <div class="plan-page">
         <div class="status-bar-placeholder"></div>
-
         <header class="page-header">
             <h1 class="page-title">食谱计划</h1>
-            <button class="search-btn">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
+            <!-- AI Customization Top Right (When Plan is Active) -->
+            <button v-if="planStore.activePlan" class="ai-compact-btn" @click="goToAI">
+                <img src="@/assets/login/beaver.jpg" class="ai-mascot-small" />
+                <span class="ai-text">定制食谱</span>
             </button>
         </header>
 
-        <div v-if="planStore.activePlan" class="active-plan-dashboard">
-            <div class="dashboard-header">
-                <h3>今日食谱</h3>
-
-                <div class="tag-wrapper">
-                    <span class="plan-tag" @click="showPlanMenu = !showPlanMenu">
-                        {{ planStore.activePlan.title }}
-                        <svg class="dropdown-icon" :class="{ rotated: showPlanMenu }" viewBox="0 0 24 24" width="12"
-                            height="12" fill="none" stroke="currentColor" stroke-width="3">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                    </span>
-
-                    <div v-if="showPlanMenu" class="plan-dropdown-menu">
-                        <div class="menu-item text-danger" @click="triggerCloseConfirm">
-                            结束当前计划
-                        </div>
+        <!-- AI Banner (When No Plan Active) -->
+        <section class="banner-section" v-if="!planStore.activePlan">
+            <div class="banner-card" @click="goToAI">
+                <div class="banner-content">
+                    <h2>16+8轻断食食谱</h2>
+                    <div class="banner-meta">
+                        <span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg> 7天</span>
+                        <span>📈 效果3-8斤</span>
+                        <span>🔥 114640人使用过</span>
+                    </div>
+                    <div class="banner-tags">
+                        <span class="btag">限时进食</span>
+                        <span class="btag">不节食</span>
+                        <span class="btag">代谢转换</span>
                     </div>
                 </div>
+                <div class="banner-img-box">
+                    <img src="https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=300&q=80"
+                        alt="diet" />
+                </div>
             </div>
+        </section>
 
-            <div class="meal-tabs">
-                <div v-for="(meal, index) in mealTypes" :key="index" class="meal-tab-item"
-                    :class="{ active: selectedMealIndex === index }" @click="selectedMealIndex = index">
-                    {{ meal }}
+        <!-- Active Plan Dashboard -->
+        <div v-if="planStore.activePlan" class="active-plan-dashboard">
+            <div class="date-selector">
+                <div class="date-item" v-for="i in 5" :key="i">
+                    <span class="date-num" :class="{ 'text-muted': i < 5 }">{{ 25 + i }}</span>
+                    <div class="check-icon" v-if="i < 5">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"
+                            stroke-width="3">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </div>
+                </div>
+                <div class="date-item today active">
+                    <span class="date-num">今</span>
+                </div>
+                <div class="date-item tomorrow">
+                    <span class="date-num">2</span>
                 </div>
             </div>
 
-            <div class="active-meal-content">
-                <div v-if="currentDisplayMeals.length === 0" class="empty-meal">
-                    暂无菜品数据
+            <div class="dashboard-card">
+                <div class="meal-tabs">
+                    <div v-for="(meal, index) in mealTypes" :key="index" class="meal-tab-item"
+                        :class="{ active: selectedMealIndex === index }" @click="selectedMealIndex = index">
+                        <span class="m-icon">{{ meal.icon }}</span> {{ meal.name }}
+                    </div>
                 </div>
-                <div v-for="(dish, dIndex) in currentDisplayMeals" :key="dIndex" class="active-dish-item">
-                    <div class="dish-thumb">图</div>
-                    <div class="dish-detail">
-                        <div class="name">{{ dish.name }}</div>
-                        <div class="desc">{{ dish.weight }} · {{ dish.calories }}千卡</div>
+
+                <div class="calorie-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <div class="progress-text"><span class="fire">🔥</span> <strong>0</strong> <span class="muted">/302
+                            千卡</span></div>
+                </div>
+
+                <div class="active-meal-content">
+                    <div v-if="currentDisplayMeals.length === 0" class="empty-meal">暂无菜品</div>
+                    <div v-for="(dish, dIndex) in currentDisplayMeals" :key="dIndex" class="active-dish-item">
+                        <img :src="dish.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=100&q=80'"
+                            class="dish-thumb" />
+                        <div class="dish-detail">
+                            <div class="name">{{ dish.name }}</div>
+                            <div class="desc">{{ dish.amount || '1份' }} | {{ dish.weight }}克 | {{ dish.calories }} 千卡
+                            </div>
+                        </div>
+                        <div class="add-icon">+</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <section class="banner-section" :class="{ 'is-compact': planStore.activePlan }">
-            <div class="banner-card">
-                <div class="banner-content">
-                    <h2>AI专属定制</h2>
-                    <p>不知道怎么吃？让AI为你量身打造减脂食谱</p>
-                    <button class="cta-btn">立即定制</button>
-                </div>
-                <div class="banner-mascot">✨</div>
-            </div>
-        </section>
-
+        <!-- Category Tabs -->
         <section class="category-section">
             <div class="tabs-container">
                 <div v-for="cat in categories" :key="cat.id" class="tab-item"
                     :class="{ active: activeCategoryId === cat.id }" @click="activeCategoryId = cat.id">
-                    {{ cat.name }}
+                    {{ cat.name }} <span v-if="cat.id === 1" class="fire-emoji">🔥</span><span v-if="cat.id === 2"
+                        class="bolt-emoji">⚡</span><span v-if="cat.id === 3" class="burger-emoji">🍔</span>
                 </div>
             </div>
         </section>
 
         <main class="list-section">
             <PlanCard v-for="plan in currentPlans" :key="plan.id" :plan="plan" />
-
-            <div v-if="currentPlans.length === 0" class="empty-state">
-                暂无该分类下的计划~
-            </div>
+            <div v-if="currentPlans.length === 0" class="empty-state">暂无食谱</div>
         </main>
 
         <BottomNavBar />
@@ -88,8 +111,9 @@
     </div>
 </template>
 
-<script setup lang="ts">
+<!-- <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import PlanCard from '@/components/plan/PlanCard.vue'
 import type { PlanItem } from '@/components/plan/PlanCard.vue'
 import BottomNavBar from '@/components/home/BottomNavBar.vue';
@@ -97,108 +121,165 @@ import { usePlanStore } from '@/stores/plan';
 import Toast from '@/components/Toast.vue';
 
 const planStore = usePlanStore();
-
-// --- 🌟 关闭计划与 Toast 相关逻辑 ---
-const showPlanMenu = ref(false);
+const router = useRouter();
 const toastRef = ref<InstanceType<typeof Toast> | null>(null);
 
-// 触发确认弹窗 (使用 async/await 处理 Promise)
-const triggerCloseConfirm = async () => {
-    showPlanMenu.value = false; // 先收起下拉菜单
-
-    if (!toastRef.value) return;
-
-    try {
-        // 调用 Toast 的 confirmDialog 模式，等待用户操作
-        await toastRef.value.confirmDialog({
-            title: '结束食谱计划',
-            message: `确定要提前结束「${planStore.activePlan?.title}」吗？结束后的数据将无法恢复。`
-        });
-
-        // 如果代码走到这里，说明用户点击了“确认”（Promise resolve）
-        executeClosePlan();
-
-    } catch (error) {
-        // 如果代码走到这里，说明用户点击了“取消”（Promise reject）
-        console.log('用户取消了结束计划的操作');
-    }
-};
-
-// 执行结束计划的底层逻辑
-const executeClosePlan = () => {
-    planStore.clearActivePlan(); // 调用 Store 清除计划
-    selectedMealIndex.value = 0; // 重置 Tab
-
-    // 弹出自动消失的成功提示
-    if (toastRef.value) {
-        toastRef.value.show('计划已结束', 'success');
-    }
-};
-// -------------------------------------
-
-// --- 今日食谱交互逻辑 ---
-const mealTypes = ['早餐', '午餐', '晚餐', '加餐'];
+const mealTypes = [
+    { name: '早餐', icon: '🍞' },
+    { name: '午餐', icon: '🍔' },
+    { name: '晚餐', icon: '🍲' },
+    { name: '加餐', icon: '🍏' }
+];
 const selectedMealIndex = ref(0);
 
 const currentDisplayMeals = computed(() => {
     if (!planStore.activePlan || !planStore.activePlan.meals) return [];
     return planStore.activePlan.meals[selectedMealIndex.value]?.dishes || [];
 });
-// -----------------------
 
-// Mock 分类数据
 const categories = ref([
-    { id: 1, name: '🔥 热门推荐' },
-    { id: 2, name: '⚡ 极速瘦身' },
-    { id: 3, name: '💪 增肌塑形' },
-    { id: 4, name: '🥗 均衡营养' },
-    { id: 5, name: '🧘‍♀️ 慢食生活' }
-])
+    { id: 1, name: '热门' },
+    { id: 2, name: '极速瘦身' },
+    { id: 3, name: '经典减肥' },
+    { id: 4, name: '网红食谱' }
+]);
+const activeCategoryId = ref(1);
 
-const activeCategoryId = ref(1)
-
-// Mock 计划列表假数据
 const allPlans = ref<PlanItem[]>([
     {
         id: 101,
         categoryId: 1,
         coverImage: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=600&q=80',
-        name: '21天极速轻断食计划',
-        duration: 21,
-        weightLoss: '3-5kg',
-        usageCount: 125000,
-        tags: ['限时进食', '全球公认', '脂肪燃烧']
+        name: '16+8轻断食食谱',
+        duration: 7,
+        weightLoss: '3-8斤',
+        usageCount: 114640,
+        tags: ['限时进食', '不节食', '代谢转换']
     },
     {
         id: 102,
         categoryId: 1,
         coverImage: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=600&q=80',
-        name: '地中海健康抗炎食谱',
-        duration: 14,
-        weightLoss: '1-2kg',
-        usageCount: 8600,
-        tags: ['优质脂肪', '抗氧化', '易坚持']
+        name: '经典地中海食谱',
+        duration: 7,
+        weightLoss: '1-3斤',
+        usageCount: 65260,
+        tags: ['全球公认', '健康饮食', '慢食生活']
     },
     {
         id: 103,
-        categoryId: 2,
+        categoryId: 1,
         coverImage: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80',
-        name: '7天突击碳水循环法',
+        name: '一只白减肥法食谱',
         duration: 7,
-        weightLoss: '2-3kg',
-        usageCount: 43200,
-        tags: ['突破平台期', '严格控制', '快速见效']
+        weightLoss: '3-5斤',
+        usageCount: 275880,
+        tags: ['网红推荐', '无痛掉秤', '不饿肚子']
+    },
+    {
+        id: 104,
+        categoryId: 2,
+        coverImage: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=600&q=80',
+        name: '韩国女团减肥食谱',
+        duration: 14,
+        weightLoss: '8-15斤',
+        usageCount: 653970,
+        tags: ['极速瘦身', '狠人专属', '严苛管理']
     }
-])
+]);
 
-// 计算属性：根据选中的 Tab 过滤数据
 const currentPlans = computed(() => {
     return allPlans.value.filter(p => p.categoryId === activeCategoryId.value)
-})
+});
+
+const goToAI = () => {
+    // toastRef.value?.show('AI定制功能即将上线', 'info');
+};
+</script> -->
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { searchPlans } from '@/api/plan'
+import PlanCard from '@/components/plan/PlanCard.vue'
+import BottomNavBar from '@/components/home/BottomNavBar.vue';
+import { usePlanStore } from '@/stores/plan';
+import Toast from '@/components/Toast.vue';
+
+const planStore = usePlanStore();
+const router = useRouter();
+const toastRef = ref<InstanceType<typeof Toast> | null>(null);
+
+const mealTypes = [
+    { name: '早餐', icon: '🍞' },
+    { name: '午餐', icon: '🍔' },
+    { name: '晚餐', icon: '🍲' },
+    { name: '加餐', icon: '🍏' }
+];
+const selectedMealIndex = ref(0);
+
+// 从 store 中获取当前正在进行的计划菜谱
+const currentDisplayMeals = computed(() => {
+    if (!planStore.activePlan || !planStore.activePlan.meals) return [];
+    return planStore.activePlan.meals[selectedMealIndex.value]?.dishes || [];
+});
+
+// 分类 Tab (你可以写死，也可以如果后端有专门的接口再改成动态获取)
+const categories = ref([
+    { id: 1, name: '热门' },
+    { id: 2, name: '极速瘦身' },
+    { id: 3, name: '经典减肥' },
+    { id: 4, name: '网红食谱' }
+]);
+const activeCategoryId = ref(1);
+
+// 存放后端返回的所有真实计划数据
+const allPlans = ref<any[]>([]);
+
+// 自动计算当前选中的 Tab 对应的食谱列表
+// ⭐ 修改 PlanIndex.vue 中的 computed 计算属性
+const currentPlans = computed(() => {
+    // 【关键修复2】将三等号 === 改为双等号 ==，或者强制转换类型
+    // 这样无论后端返回的是数字 1 还是字符串 "1"，都能成功匹配上当前选中的 Tab
+    return allPlans.value.filter(p => p.categoryId == activeCategoryId.value);
+});
+
+const loadPlans = async () => {
+    try {
+        const res = await searchPlans();
+
+        console.log('后端响应数据:', res);
+
+        // Axios 拦截器已剥离 Result 包装，res 直接就是 data 数组
+        const dataList = Array.isArray(res) ? res : (res?.data || []);
+
+        if (dataList.length > 0 || Array.isArray(res)) {
+            allPlans.value = dataList.map((item: any) => ({
+                ...item,
+                tags: item.tagList || []
+            }));
+
+            console.log('赋值给 allPlans 的最终数据:', allPlans.value);
+        } else {
+            toastRef.value?.show('暂无食谱数据', 'error');
+        }
+    } catch (error) {
+        console.error('获取食谱列表异常:', error);
+        toastRef.value?.show('网络异常，请稍后重试', 'error');
+    }
+};
+
+// 页面加载时触发请求
+onMounted(() => {
+    loadPlans();
+});
+
+const goToAI = () => {
+    toastRef.value?.show('AI定制功能即将上线', 'success');
+    // router.push('/ai-custom'); // 未来对接AI页面的路由
+};
 </script>
 
 <style scoped>
-/* 原有的基础样式保持不变 */
 .plan-page {
     min-height: 100vh;
     background-color: #FAFAFA;
@@ -212,9 +293,9 @@ const currentPlans = computed(() => {
 
 .page-header {
     position: sticky;
-    top: 0px;
+    top: 0;
     z-index: 100;
-    padding: 50px 20px 10px 20px;
+    padding: 44px 20px 10px 20px;
     background-color: #FAFAFA;
     display: flex;
     justify-content: space-between;
@@ -224,271 +305,113 @@ const currentPlans = computed(() => {
 }
 
 .page-title {
-    font-size: 22px;
+    font-size: 26px;
     font-weight: 900;
-    color: #333;
+    color: #4A3A2F;
     margin: 0;
 }
 
-.search-btn {
-    background: none;
+.ai-compact-btn {
+    background: #FFF3E0;
     border: none;
-    color: #333;
-    padding: 8px;
-    cursor: pointer;
-}
-
-/* 今日食谱面板样式 */
-.active-plan-dashboard {
-    background: #fff;
-    margin: 0 20px 16px;
-    padding: 16px;
+    padding: 4px 12px 4px 6px;
     border-radius: 20px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-}
-
-.dashboard-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-}
-
-.dashboard-header h3 {
-    font-size: 16px;
-    font-weight: bold;
-    color: #333;
-    margin: 0;
-}
-
-/* 🌟 下拉菜单的容器与触发器 */
-.tag-wrapper {
-    position: relative;
-}
-
-.plan-tag {
-    font-size: 12px;
-    color: #4caf50;
-    background: #e8f5e9;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-weight: 500;
     display: flex;
     align-items: center;
+    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.15);
     cursor: pointer;
-    transition: background 0.2s;
+    gap: 6px;
+    transition: transform 0.2s;
 }
 
-.plan-tag:active {
-    background: #c8e6c9;
+.ai-compact-btn:active {
+    transform: scale(0.95);
 }
 
-.dropdown-icon {
-    margin-left: 4px;
-    transition: transform 0.3s;
+.ai-mascot-small {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
 }
 
-.dropdown-icon.rotated {
-    transform: rotate(180deg);
-}
-
-/* 🌟 弹出的下拉菜单 */
-.plan-dropdown-menu {
-    position: absolute;
-    top: 32px;
-    right: 0;
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    padding: 8px;
-    z-index: 10;
-    min-width: 120px;
-    animation: fadeInDown 0.2s ease-out;
-}
-
-.menu-item {
-    padding: 10px 12px;
+.ai-text {
     font-size: 13px;
-    text-align: center;
-    border-radius: 8px;
-    cursor: pointer;
-}
-
-.menu-item:active {
-    background-color: #f5f5f5;
-}
-
-.text-danger {
-    color: #f44336;
+    color: #E65100;
     font-weight: bold;
 }
 
-@keyframes fadeInDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-
-
-/* 餐食 Tab */
-.meal-tabs {
-    display: flex;
-    background: #f5f6f8;
-    border-radius: 10px;
-    padding: 4px;
-    margin-bottom: 16px;
-}
-
-.meal-tab-item {
-    flex: 1;
-    text-align: center;
-    padding: 8px 0;
-    font-size: 13px;
-    color: #666;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-    cursor: pointer;
-}
-
-.meal-tab-item.active {
-    background: #fff;
-    color: #333;
-    font-weight: bold;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-}
-
-/* 菜品列表 */
-.active-meal-content {
-    min-height: 100px;
-}
-
-.empty-meal {
-    text-align: center;
-    color: #bbb;
-    font-size: 13px;
-    padding: 20px 0;
-}
-
-.active-dish-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 12px;
-}
-
-.active-dish-item:last-child {
-    margin-bottom: 0;
-}
-
-.dish-thumb {
-    width: 44px;
-    height: 44px;
-    background: #f0f0f0;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    color: #ccc;
-    margin-right: 12px;
-    flex-shrink: 0;
-}
-
-.dish-detail {
-    flex: 1;
-}
-
-.dish-detail .name {
-    font-size: 14px;
-    color: #333;
-    font-weight: 500;
-    margin-bottom: 4px;
-}
-
-.dish-detail .desc {
-    font-size: 12px;
-    color: #999;
-}
-
-/* Banner 折叠动画区 */
+/* Banner AI */
 .banner-section {
-    padding: 10px 20px 20px;
-    transition: all 0.3s ease-in-out;
+    width: 95%;
+    margin: 0 auto 20px;
 }
 
 .banner-card {
-    background: linear-gradient(135deg, #FFF3D9 0%, #FFE4B5 100%);
-    border-radius: 24px;
-    padding: 24px;
+    background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
+    border-radius: 20px;
+    padding: 20px;
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 10px 30px rgba(238, 203, 139, 0.3);
-    transition: all 0.3s ease;
+    box-shadow: 0 8px 24px rgba(76, 175, 80, 0.15);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.banner-content {
+    flex: 1;
+    position: relative;
+    z-index: 2;
 }
 
 .banner-content h2 {
-    margin: 0 0 6px 0;
-    font-size: 20px;
-    color: #8B5A2B;
+    font-size: 22px;
+    color: #2E7D32;
+    margin: 0 0 8px 0;
     font-weight: 900;
 }
 
-.banner-content p {
-    margin: 0 0 16px 0;
-    font-size: 13px;
-    color: #A06F3D;
-    max-width: 180px;
-    line-height: 1.4;
+.banner-meta {
+    font-size: 11px;
+    color: #4CAF50;
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+    font-weight: 500;
 }
 
-.cta-btn {
-    background-color: #8B5A2B;
-    color: #FFF;
-    border: none;
-    padding: 8px 20px;
-    border-radius: 20px;
+.banner-tags {
+    display: flex;
+    gap: 8px;
+}
+
+.btag {
+    background: rgba(46, 125, 50, 0.15);
+    color: #2E7D32;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 12px;
     font-weight: bold;
-    font-size: 13px;
-    box-shadow: 0 4px 12px rgba(139, 90, 43, 0.3);
 }
 
-.banner-mascot {
-    font-size: 60px;
-    transition: all 0.3s;
+.banner-img-box {
+    position: absolute;
+    right: -20px;
+    bottom: -20px;
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    overflow: hidden;
+    z-index: 1;
 }
 
-/* 🌟 当有计划时，Banner 的收缩态样式 */
-.banner-section.is-compact {
-    padding: 0 20px 16px;
+.banner-img-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
-.banner-section.is-compact .banner-card {
-    padding: 12px 20px;
-    border-radius: 16px;
-}
-
-.banner-section.is-compact p,
-.banner-section.is-compact .cta-btn {
-    display: none;
-}
-
-.banner-section.is-compact .banner-content h2 {
-    margin: 0;
-    font-size: 16px;
-}
-
-.banner-section.is-compact .banner-mascot {
-    font-size: 24px;
-}
-
-/* 下方原样列表区 */
+/* Category Tabs */
 .category-section {
     padding: 0 0 16px 0;
 }
@@ -509,24 +432,214 @@ const currentPlans = computed(() => {
 
 .tab-item {
     white-space: nowrap;
-    padding: 8px 16px;
+    padding: 8px 20px;
     background-color: #FFF;
-    color: #666;
+    color: #9E9E9E;
     border-radius: 20px;
     font-size: 14px;
-    font-weight: 500;
+    font-weight: bold;
+    border: 1px solid #EEEEEE;
     transition: all 0.3s ease;
-    border: 1px solid #EFEFEF;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 }
 
 .tab-item.active {
-    background-color: #333;
-    color: #FFF;
-    border-color: #333;
-    font-weight: bold;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    color: #4A3A2F;
+    border-color: #4A3A2F;
 }
 
+/* Active Plan Dashboard */
+.active-plan-dashboard {
+    background: linear-gradient(180deg, #F1F8E9 0%, #FAFAFA 100%);
+    padding: 10px 20px;
+    margin-bottom: 16px;
+}
+
+.date-selector {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.date-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.date-num {
+    font-size: 18px;
+    font-weight: bold;
+    color: #4CAF50;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(76, 175, 80, 0.1);
+    border-radius: 50%;
+}
+
+.date-num.text-muted {
+    color: #BDBDBD;
+    background: transparent;
+}
+
+.check-icon {
+    width: 18px;
+    height: 18px;
+    background: #4CAF50;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.date-item.today .date-num {
+    background: #FFF9C4;
+    color: #F57F17;
+}
+
+.date-item.tomorrow .date-num {
+    background: #E8F5E9;
+    color: #2E7D32;
+    border: 1px solid #4CAF50;
+}
+
+.dashboard-card {
+    background: #fff;
+    border-radius: 24px;
+    padding: 20px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+}
+
+.meal-tabs {
+    display: flex;
+    background: #F5F5F5;
+    border-radius: 16px;
+    padding: 4px;
+    margin-bottom: 20px;
+}
+
+.meal-tab-item {
+    flex: 1;
+    text-align: center;
+    padding: 10px 0;
+    font-size: 14px;
+    color: #9E9E9E;
+    border-radius: 12px;
+    transition: all 0.3s;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.meal-tab-item.active {
+    background: #FFF;
+    color: #FF9800;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.calorie-progress {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 8px;
+    background: #FFF3E0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #FFB74D;
+    border-radius: 4px;
+}
+
+.progress-text {
+    font-size: 14px;
+    color: #FF9800;
+}
+
+.progress-text strong {
+    font-size: 18px;
+}
+
+.progress-text .muted {
+    color: #9E9E9E;
+    font-size: 12px;
+}
+
+.active-meal-content {
+    min-height: 100px;
+}
+
+.empty-meal {
+    text-align: center;
+    color: #bbb;
+    font-size: 13px;
+    padding: 20px 0;
+}
+
+.active-dish-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+    background: #FAFAFA;
+    padding: 12px;
+    border-radius: 16px;
+}
+
+.active-dish-item:last-child {
+    margin-bottom: 0;
+}
+
+.dish-thumb {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    object-fit: cover;
+    margin-right: 12px;
+}
+
+.dish-detail {
+    flex: 1;
+}
+
+.dish-detail .name {
+    font-size: 16px;
+    color: #333;
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+
+.dish-detail .desc {
+    font-size: 12px;
+    color: #9E9E9E;
+}
+
+.add-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #EEEEEE;
+    color: #9E9E9E;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* List Section */
 .list-section {
     padding: 0 20px;
 }
