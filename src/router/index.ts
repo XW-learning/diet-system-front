@@ -24,6 +24,12 @@ const routes: Array<RouteRecordRaw> = [
     meta: { requiresAuth: true, depth: 1 }
   },
   {
+    path: '/community',
+    name: 'community',
+    component: () => import('@/views/user/community/CommunityIndex.vue'),
+    meta: { requiresAuth: true, depth: 1 }
+  },
+  {
     path: '/calendar',
     name: 'Calendar',
     component: () => import('@/components/home/CalendarIndex.vue'),
@@ -55,6 +61,13 @@ const routes: Array<RouteRecordRaw> = [
     name: 'PlanDetail',
     component: () => import('@/components/plan/PlanDetail.vue'),
     meta: { requiresAuth: true, depth: 2, title: '计划详情' }
+  },
+  {
+    path: '/community/publish',
+    name: 'CommunityPublish',
+    component: () => import('@/components/community/CommunityPublish.vue'),
+    // 🌟 depth: 2 是关键，触发从右侧滑入的动画
+    meta: { requiresAuth: true, depth: 2, title: '发布动态' }
   },
 
   // ==================== 管理员路由 (保持嵌套结构) ====================

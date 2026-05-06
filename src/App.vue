@@ -23,7 +23,7 @@ const router = useRouter()
 const transitionName = ref('')
 
 // 🌟 定义底部 Tab 的空间顺序，用于判断左右滑动方向
-const tabsOrder = ['/home', '/plan', '/calendar', '/profile']
+const tabsOrder = ['/home', '/plan', '/community', '/calendar', '/profile']
 
 // 🌟 核心逻辑：监控路由变化，动态决定滑动动画
 router.afterEach((to, from) => {
