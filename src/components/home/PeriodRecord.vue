@@ -4,13 +4,15 @@
             <div class="w-icon" style="background: #FCE4EC;">🌸</div>
             <div class="w-title">生理期</div>
         </div>
-        <div class="w-desc">{{ currentPeriodDay ? '姨妈期' : '快捷记录' }}</div>
+        <!-- 🌟 动态显示当前所处阶段：姨妈期/排卵期/黄体期/卵泡期 -->
+        <div class="w-desc">{{ currentPhaseStatus.title }}</div>
         <div class="w-main" style="margin-top: 0;">
-            <span v-if="currentPeriodDay" class="w-val" style="color: #E91E63; font-size: 18px; font-weight: bold;">
-                第 {{ currentPeriodDay }} 天
-            </span>
-            <span v-else class="w-val" style="color: #EC407A; font-size: 16px;">
-                点击记录
+            <span class="w-val" :style="{
+                color: currentPhaseStatus.color,
+                fontSize: currentPhaseStatus.valSize,
+                fontWeight: currentPhaseStatus.bold ? 'bold' : 'normal'
+            }">
+                {{ currentPhaseStatus.val }}
             </span>
         </div>
     </div>
@@ -63,7 +65,8 @@
 
                     <div class="cycle-legend">
                         <div class="legend-item"><span class="dot period-dot"></span>预测/已记经期</div>
-                        <div class="legend-item"><span class="dot fertile-dot"></span>易孕期</div>
+                        <!-- 🌟 统一文案，将“易孕期”改为“排卵期” -->
+                        <div class="legend-item"><span class="dot fertile-dot"></span>排卵期</div>
                         <div class="legend-item"><span class="dot ovulation-dot"></span>排卵日</div>
                     </div>
 
@@ -127,7 +130,7 @@ const selectedDateStr = computed(() => {
 
 const fetchRecords = async () => {
     try {
-        const res = await getPeriodRecordListApi(); // 🌟 换成专属接口，就不会被 LIMIT 7 影响了
+        const res = await getPeriodRecordListApi();
         const data = (res as any).code !== undefined ? (res as any).data : res;
         if (data) {
             savedPeriodRecords.value = data;
@@ -141,13 +144,11 @@ onMounted(() => {
     fetchRecords()
 })
 
-// 独立辅助函数：判断某天是否已经被保存在历史经期中
 const isSavedPeriodDate = (dateStr: string) => {
     for (const record of savedPeriodRecords.value) {
         if (!record.periodStartDate) continue;
         const start = parseDateString(record.periodStartDate).getTime();
 
-        // 🌟 修复：增加对 endDate 为 null 的推算
         let end;
         if (record.periodEndDate) {
             end = parseDateString(record.periodEndDate).getTime();
@@ -164,7 +165,6 @@ const isSavedPeriodDate = (dateStr: string) => {
     return false;
 };
 
-// 计算今天是姨妈期的第几天（首页卡片展示用）
 const currentPeriodDay = computed(() => {
     if (!savedPeriodRecords.value || savedPeriodRecords.value.length === 0) return null;
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -173,7 +173,6 @@ const currentPeriodDay = computed(() => {
         if (!record.periodStartDate) continue;
         const start = parseDateString(record.periodStartDate);
 
-        // 🌟 修复：增加对 endDate 为 null 的推算，保证首页卡片正常显示
         let end;
         if (record.periodEndDate) {
             end = parseDateString(record.periodEndDate);
@@ -190,7 +189,56 @@ const currentPeriodDay = computed(() => {
     return null;
 });
 
-// 🌟 重构核心：全局生理期数据计算引擎（不再依赖用户的点击，全局智能推演）
+// 🌟 新增计算属性：判断当前所处的生理周期阶段
+const currentPhaseStatus = computed(() => {
+    if (!savedPeriodRecords.value || savedPeriodRecords.value.length === 0) {
+        return { title: '快捷记录', val: '点击记录', color: '#EC407A', valSize: '16px', bold: false };
+    }
+
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStr = formatDateStr(today);
+    const data = globalCycleData.value;
+
+    // 1. 经期
+    if (currentPeriodDay.value) {
+        return { title: '姨妈期', val: `第 ${currentPeriodDay.value} 天`, color: '#E91E63', valSize: '18px', bold: true };
+    }
+
+    // 2. 排卵日
+    if (data.ovulation.has(todayStr)) {
+        return { title: '排卵日', val: '受孕高峰', color: '#6A1B9A', valSize: '16px', bold: true };
+    }
+
+    // 3. 排卵期
+    if (data.fertile.has(todayStr)) {
+        return { title: '排卵期', val: '易孕阶段', color: '#8E24AA', valSize: '16px', bold: true };
+    }
+
+    // 4. 黄体期 / 卵泡期推算
+    const validRecords = savedPeriodRecords.value
+        .filter(r => r.periodStartDate)
+        .map(r => parseDateString(r.periodStartDate))
+        .sort((a, b) => b.getTime() - a.getTime());
+
+    if (validRecords.length > 0) {
+        const latestStart = validRecords[0];
+        const ovuDate = new Date(latestStart);
+        ovuDate.setDate(ovuDate.getDate() + 13); // 排卵日
+
+        const nextPeriodDate = new Date(latestStart);
+        nextPeriodDate.setDate(nextPeriodDate.getDate() + 28); // 预计下次经期
+
+        if (today.getTime() > ovuDate.getTime() && today.getTime() < nextPeriodDate.getTime()) {
+            return { title: '黄体期', val: '注意休息', color: '#F57C00', valSize: '16px', bold: true };
+        } else if (today.getTime() < ovuDate.getTime()) {
+            return { title: '卵泡期', val: '状态极佳', color: '#4CAF50', valSize: '16px', bold: true };
+        }
+    }
+
+    return { title: '周期记录', val: '暂无预测', color: '#EC407A', valSize: '16px', bold: false };
+});
+
+
 const globalCycleData = computed(() => {
     const actualPeriods = new Set<string>();
     const predictedPeriods = new Set<string>();
@@ -199,19 +247,16 @@ const globalCycleData = computed(() => {
 
     if (!savedPeriodRecords.value) return { actualPeriods, predictedPeriods, fertile, ovulation };
 
-    // 1. 解析并整合所有真实的已保存记录
-    // 1. 解析并整合所有真实的已保存记录
     const validRecords = savedPeriodRecords.value
         .filter(r => r.periodStartDate)
         .map(r => {
             const start = parseDateString(r.periodStartDate);
-            // 🌟 核心修改：如果后端没有返回 endDate (说明还没结束)，前端为了美观，默认向后画 4 天的粉色预测
             let end;
             if (r.periodEndDate) {
                 end = parseDateString(r.periodEndDate);
             } else {
                 end = new Date(start);
-                end.setDate(end.getDate() + 4); // 视觉上预测5天
+                end.setDate(end.getDate() + 4);
             }
             return { start, end };
         })
@@ -225,23 +270,19 @@ const globalCycleData = computed(() => {
         }
     });
 
-    // 2. 取【最新】的那次经期，自动预测未来的排卵期和下一次经期
     if (validRecords.length > 0) {
         const latestStart = validRecords[0].start;
 
-        // 排卵日推算 (latestStart + 13)
         const ovu = new Date(latestStart);
         ovu.setDate(ovu.getDate() + 13);
         ovulation.add(formatDateStr(ovu));
 
-        // 易孕期推算 (ovu - 5 到 ovu + 4)
         for (let i = -5; i <= 4; i++) {
             const f = new Date(ovu);
             f.setDate(f.getDate() + i);
             fertile.add(formatDateStr(f));
         }
 
-        // 下一次经期推算 (latestStart + 28，持续5天)
         const nextP = new Date(latestStart);
         nextP.setDate(nextP.getDate() + 28);
         for (let i = 0; i < 5; i++) {
@@ -251,10 +292,8 @@ const globalCycleData = computed(() => {
         }
     }
 
-    // 3. 拦截处理：如果用户正在手动点击“是否为经期”按钮，提供即时的假数据预览
     if (isPeriod.value === 1) {
         const cellDateStr = selectedDateStr.value;
-        // 如果用户选中的这一天不在真实记录里，也不在预测记录里，那就立刻生成临时预测
         if (!actualPeriods.has(cellDateStr) && !predictedPeriods.has(cellDateStr)) {
             const manualStart = new Date(selectedYear.value, selectedMonth.value - 1, selectedDate.value);
 
@@ -282,13 +321,11 @@ const globalCycleData = computed(() => {
 const getCycleClass = (day: number) => {
     const cellDateStr = `${currentYear.value}-${String(currentMonth.value).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 
-    // 经期标志（真实的已存记录，和预测的下一次经期都染红）
     const isPeriodDay = globalCycleData.value.actualPeriods.has(cellDateStr) || globalCycleData.value.predictedPeriods.has(cellDateStr);
 
     let isOvuDay = false;
     let isFertile = false;
 
-    // 🌟 核心防冲突：如果这一天已经是经期了，绝对不再叠加排卵期颜色，红色优先级最高！
     if (!isPeriodDay) {
         isOvuDay = globalCycleData.value.ovulation.has(cellDateStr);
         isFertile = !isOvuDay && globalCycleData.value.fertile.has(cellDateStr);
@@ -345,7 +382,7 @@ const openPopup = async () => {
     currentYear.value = now.getFullYear()
     currentMonth.value = now.getMonth() + 1
     await fetchRecords()
-    selectDate(now.getDate()) // 默认选中今天
+    selectDate(now.getDate())
 }
 
 const closePopup = () => { showPopup.value = false }
@@ -358,7 +395,6 @@ const handleSave = async () => {
 
         if (isPeriod.value === 1) {
             const cellDateStrSafe = selectedDateStr.value;
-            // 保护机制：如果选中的这一天已经在历史记录里了，拦截保存操作，防止破坏真实的日期区间
             if (isSavedPeriodDate(cellDateStrSafe)) {
                 showToast('该日期已在姨妈期记录中');
                 closePopup();
@@ -387,7 +423,6 @@ const handleSave = async () => {
 </script>
 
 <style scoped>
-/* 保持所有样式一字不差 */
 @import '@/styles/widget-style.css';
 
 .overlay {
@@ -620,7 +655,6 @@ const handleSave = async () => {
     width: 100%;
     margin-bottom: 16px;
     overflow: hidden;
-    /* 防止滑动时水平滚动条闪烁 */
 }
 
 .custom-radio.active {
