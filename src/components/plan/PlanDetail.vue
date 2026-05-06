@@ -88,7 +88,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { usePlanStore } from '@/stores/plan';
 import { useRouter, useRoute } from 'vue-router';
-import { getPlanDetail } from '@/api/plan';
+import { getPlanDetail, activatePlan } from '@/api/plan';
+import { showToast } from 'vant';
 
 const planStore = usePlanStore();
 const router = useRouter();
@@ -188,9 +189,16 @@ const loadDetail = async () => {
     }
 };
 
-const startPlan = () => {
+const startPlan = async () => {
+    const planId = Array.isArray(route.params.id) ? route.params.id[0] : route.params.id;
+    try {
+        await activatePlan(planId);
+        showToast('食谱计划设置成功');
+    } catch (e) {
+        return;
+    }
     planStore.setActivePlan({
-        id: route.params.id,
+        id: planId,
         title: planInfo.value.name || '食谱计划',
         meals: groupedMeals.value
     });

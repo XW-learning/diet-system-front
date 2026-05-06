@@ -57,3 +57,18 @@ export const getCustomPlans = () => {
 // export const activatePlan = (data: { planId: number | string }) => {
 //     return request.post('/plan/user/activate', data)
 // }
+
+/**
+ * 设置为我的食谱计划
+ * @param planId 方案ID
+ */
+export const activatePlan = (planId: number | string) => {
+    return request.post('/plan/activate', { planId })
+}
+
+/**
+ * 获取当前激活的食谱计划
+ */
+export const getActivePlan = () => {
+    return request.get('/plan/active')
+}

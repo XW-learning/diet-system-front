@@ -114,7 +114,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 
-import { searchPlans } from '@/api/plan'
+import { searchPlans, getActivePlan } from '@/api/plan'
 import PlanCard from '@/components/plan/PlanCard.vue'
 import BottomNavBar from '@/components/home/BottomNavBar.vue';
 import { usePlanStore } from '@/stores/plan';
@@ -183,9 +183,69 @@ const loadPlans = async () => {
     }
 };
 
+const mealTypeMap: Record<number, { name: string; icon: string }> = {
+    1: { name: '早餐', icon: '🍞' },
+    2: { name: '午餐', icon: '🍲' },
+    3: { name: '晚餐', icon: '🥗' },
+    4: { name: '加餐', icon: '🍏' }
+};
+
+const loadActivePlan = async () => {
+    try {
+        const data = await getActivePlan();
+        if (data && data.plan && data.meals && data.meals.length > 0) {
+            const firstDay = data.meals[0].dayNumber;
+            const dayMeals = data.meals.filter((m: any) => m.dayNumber === firstDay);
+            const groups: Record<number, any> = {};
+
+            for (const meal of dayMeals) {
+                const mt = meal.mealType;
+                if (!groups[mt]) {
+                    const typeInfo = mealTypeMap[mt] || { name: '其他', icon: '🍽️' };
+                    groups[mt] = {
+                        type: mt,
+                        name: typeInfo.name,
+                        icon: typeInfo.icon,
+                        totalCalories: 0,
+                        carbs: 0,
+                        protein: 0,
+                        fat: 0,
+                        dishes: [] as any[]
+                    };
+                }
+                groups[mt].totalCalories += meal.calorie || 0;
+                groups[mt].carbs += Math.round(meal.carbohydrate || 0);
+                groups[mt].protein += Math.round(meal.protein || 0);
+                groups[mt].fat += Math.round(meal.fat || 0);
+                groups[mt].dishes.push({
+                    id: meal.dishId,
+                    name: meal.dishName,
+                    image: meal.dishImage || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=100&q=80',
+                    amount: meal.description || meal.cookMethod || '1份',
+                    weight: Math.round(meal.weight || 0),
+                    calories: meal.calorie
+                });
+            }
+
+            const groupedMeals = [1, 2, 3, 4]
+                .filter(mt => groups[mt])
+                .map(mt => groups[mt]);
+
+            planStore.setActivePlan({
+                id: data.plan.id,
+                title: data.plan.name || '食谱计划',
+                meals: groupedMeals
+            });
+        }
+    } catch (e) {
+        // No active plan, silently ignore
+    }
+};
+
 // 页面加载时触发请求
 onMounted(() => {
     loadPlans();
+    loadActivePlan();
 });
 
 const goToAI = () => {
