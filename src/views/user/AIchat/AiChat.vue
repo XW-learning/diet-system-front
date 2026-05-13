@@ -51,8 +51,8 @@
 <script setup lang="ts">
 import { ref, nextTick, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { streamChat } from '@/api/ai';
 
-// 如果没有配置 router，可以将这里替换为你的返回逻辑
 const router = useRouter();
 
 interface Message {
@@ -61,10 +61,12 @@ interface Message {
     content: string;
 }
 
-// 初始化对话数据
+let msgIdCounter = 0;
+const nextMsgId = () => ++msgIdCounter;
+
 const messages = ref<Message[]>([
     {
-        id: Date.now(),
+        id: nextMsgId(),
         role: 'ai',
         content: '你好！我是你的专属AI健康助手。关于卡路里计算、食谱推荐或是运动计划，随时都可以问我哦！'
     }
@@ -73,8 +75,8 @@ const messages = ref<Message[]>([
 const inputText = ref('');
 const isTyping = ref(false);
 const messagesContainer = ref<HTMLElement | null>(null);
+let currentController: AbortController | null = null;
 
-// 滚动到底部（保持最新消息在视野内）
 const scrollToBottom = async () => {
     await nextTick();
     if (messagesContainer.value) {
@@ -82,42 +84,65 @@ const scrollToBottom = async () => {
     }
 };
 
-// 返回上一页
 const goBack = () => {
     router.back();
 };
 
-// 发送消息处理逻辑
 const sendMessage = async () => {
     const text = inputText.value.trim();
     if (!text || isTyping.value) return;
 
-    // 1. 渲染用户发送的消息
+    console.log('[Chat] 用户发送:', text);
+
+    if (currentController) {
+        currentController.abort();
+        currentController = null;
+    }
+
+    const userMsgId = nextMsgId();
     messages.value.push({
-        id: Date.now(),
+        id: userMsgId,
         role: 'user',
         content: text
     });
     inputText.value = '';
-    scrollToBottom();
 
-    // 2. 触发AI输入状态
     isTyping.value = true;
     scrollToBottom();
 
-    // 3. 模拟网络请求与AI回复 (这里后续可替换为对接你的后端 api/ai 接口)
-    setTimeout(() => {
-        isTyping.value = false;
-        messages.value.push({
-            id: Date.now(),
-            role: 'ai',
-            content: `这是一个模拟回复。你刚才问了关于：“${text}” 的问题。在实际项目中，这里会显示大模型生成的健康建议。`
-        });
-        scrollToBottom();
-    }, 1500);
+    let aiMsgId: number | null = null;
+
+    currentController = streamChat(text, {
+        onChunk: (content: string) => {
+            if (isTyping.value) {
+                isTyping.value = false;
+                aiMsgId = nextMsgId();
+                messages.value.push({ id: aiMsgId, role: 'ai', content });
+            } else {
+                const aiMsg = messages.value.find(m => m.id === aiMsgId);
+                if (aiMsg) aiMsg.content += content;
+            }
+            scrollToBottom();
+        },
+        onDone: () => {
+            console.log('[Chat] AI回复完成');
+            isTyping.value = false;
+            currentController = null;
+        },
+        onError: (err: Error) => {
+            console.error('[Chat] AI错误:', err);
+            isTyping.value = false;
+            if (aiMsgId != null) {
+                const aiMsg = messages.value.find(m => m.id === aiMsgId);
+                if (aiMsg && !aiMsg.content) {
+                    aiMsg.content = '抱歉，AI 服务暂时不可用，请稍后重试。';
+                }
+            }
+            currentController = null;
+        },
+    });
 };
 
-// 页面加载完成后自动滚动到底部
 onMounted(() => {
     scrollToBottom();
 });
@@ -246,7 +271,7 @@ onMounted(() => {
     background-color: #ffffff;
     color: #333333;
     border-top-left-radius: 4px;
-    /* 左上角直角，增强指向性 */
+    text-align: left;
 }
 
 /* --- 3. 打字机动画样式 --- */
