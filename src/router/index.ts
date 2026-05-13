@@ -51,6 +51,13 @@ const routes: Array<RouteRecordRaw> = [
     meta: { depth: 2 }
   },
   {
+    path: '/ai',
+    name: 'AiChat',
+    component: () => import('@/views/user/AIchat/AiChat.vue'),
+    // depth: 2 确保从右侧滑入，且底部不会有 Navbar 挡住聊天输入框
+    meta: { requiresAuth: true, depth: 2, title: 'AI健康助手' }
+  },
+  {
     path: '/search',
     name: 'Search',
     component: () => import('@/components/home/SearchOverlay.vue'),
