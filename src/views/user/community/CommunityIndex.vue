@@ -48,7 +48,7 @@
                     <div class="post-card" v-for="post in posts" :key="post.id">
                         <!-- 发帖人信息 (已精修：头像、姓名统一严格左对齐) -->
                         <div class="post-header">
-                            <img :src="post.avatar" class="avatar" alt="avatar" />
+                            <img :src="(post.avatar && post.avatar !== 'null') ? post.avatar : defaultAvatar" class="avatar" alt="avatar" />
                             <div class="user-info">
                                 <div class="username">{{ post.username }}</div>
                                 <div class="time-meta">{{ formatRelativeTime(post.createTime) }}</div>
@@ -104,6 +104,7 @@ import { useRouter } from 'vue-router';
 import BottomNavBar from '@/components/home/BottomNavBar.vue';
 import { getShareList, toggleLike, incrementShareCount } from '@/api/community';
 import type { ShareVO } from '@/types/community';
+import defaultAvatar from '@/assets/avatar.jpg';
 
 // 当前选中的 Tab
 const activeTab = ref<'follow' | 'recommend' | 'latest'>('recommend');
