@@ -3,15 +3,15 @@
         <!-- 顶部安全区占位 -->
         <div class="status-bar-placeholder"></div>
 
-        <!-- 顶部导航栏 -->
+            <!-- 顶部导航栏 -->
         <header class="community-header">
             <div class="header-tabs">
                 <span class="tab-item" :class="{ active: activeTab === 'follow' }"
-                    @click="activeTab = 'follow'">关注</span>
+                    @click="switchTab('follow')">关注</span>
                 <span class="tab-item" :class="{ active: activeTab === 'recommend' }"
-                    @click="activeTab = 'recommend'">推荐</span>
+                    @click="switchTab('recommend')">推荐</span>
                 <span class="tab-item" :class="{ active: activeTab === 'latest' }"
-                    @click="activeTab = 'latest'">最新</span>
+                    @click="switchTab('latest')">最新</span>
             </div>
             <div class="search-icon">🔍</div>
         </header>
@@ -29,41 +29,60 @@
 
             <!-- 动态列表 -->
             <div class="feed-list">
-                <div class="post-card" v-for="post in mockPosts" :key="post.id">
-                    <!-- 发帖人信息 (已精修：头像、姓名统一严格左对齐) -->
-                    <div class="post-header">
-                        <img :src="post.avatar" class="avatar" alt="avatar" />
-                        <div class="user-info">
-                            <div class="username">{{ post.username }}</div>
-                            <div class="time-meta">{{ post.time }}</div>
-                        </div>
-                        <div class="more-btn">⋮</div>
-                    </div>
-
-                    <!-- 动态正文 -->
-                    <div class="post-content">
-                        {{ post.content }}
-                    </div>
-
-                    <!-- 动态配图 (最多演示3张布局) -->
-                    <div class="post-images" :class="'img-count-' + post.images.length" v-if="post.images.length > 0">
-                        <img v-for="(img, idx) in post.images" :key="idx" :src="img" class="post-img" />
-                    </div>
-
-                    <!-- 互动数据区 -->
-                    <div class="post-actions">
-                        <div class="action-btn">
-                            <span class="icon">🔁</span> {{ post.shares }}
-                        </div>
-                        <div class="action-btn">
-                            <span class="icon">💬</span> {{ post.comments }}
-                        </div>
-                        <div class="action-btn" :class="{ liked: post.isLiked }" @click="post.isLiked = !post.isLiked">
-                            <span class="icon">{{ post.isLiked ? '♥' : '♡' }}</span>
-                            {{ post.isLiked ? post.likes + 1 : post.likes }}
-                        </div>
-                    </div>
+                <!-- 加载中 -->
+                <div class="loading-state" v-if="loading">
+                    <span>加载中...</span>
                 </div>
+
+                <!-- 错误提示 -->
+                <div class="error-state" v-else-if="errorMsg">
+                    <span>{{ errorMsg }}</span>
+                </div>
+
+                <!-- 关注占位 -->
+                <div class="empty-state" v-else-if="activeTab === 'follow'">
+                    <span>关注列表为空，去发现更多精彩内容吧~</span>
+                </div>
+
+                <template v-else>
+                    <div class="post-card" v-for="post in posts" :key="post.id">
+                        <!-- 发帖人信息 (已精修：头像、姓名统一严格左对齐) -->
+                        <div class="post-header">
+                            <img :src="post.avatar" class="avatar" alt="avatar" />
+                            <div class="user-info">
+                                <div class="username">{{ post.username }}</div>
+                                <div class="time-meta">{{ formatRelativeTime(post.createTime) }}</div>
+                            </div>
+                            <div class="more-btn">⋮</div>
+                        </div>
+
+                        <!-- 动态正文 -->
+                        <div class="post-content">
+                            {{ post.content }}
+                        </div>
+
+                        <!-- 动态配图 (最多演示3张布局) -->
+                        <div class="post-images"
+                             :class="'img-count-' + Math.min(post.images.length, 3)"
+                             v-if="post.images && post.images.length > 0">
+                            <img v-for="(img, idx) in post.images.slice(0, 9)" :key="idx" :src="img" class="post-img" />
+                        </div>
+
+                        <!-- 互动数据区 -->
+                        <div class="post-actions">
+                            <div class="action-btn" @click="handleShare(post)">
+                                <span class="icon">🔁</span> {{ post.shareCount }}
+                            </div>
+                            <div class="action-btn">
+                                <span class="icon">💬</span> {{ post.commentCount }}
+                            </div>
+                            <div class="action-btn" :class="{ liked: post.isLiked }" @click="handleLike(post)">
+                                <span class="icon">{{ post.isLiked ? '♥' : '♡' }}</span>
+                                {{ post.likeCount }}
+                            </div>
+                        </div>
+                    </div>
+                </template>
 
                 <div class="bottom-tips">- 到底啦，去发布一条动态吧 -</div>
             </div>
@@ -80,52 +99,96 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import BottomNavBar from '@/components/home/BottomNavBar.vue';
+import { getShareList, toggleLike, incrementShareCount } from '@/api/community';
+import type { ShareVO } from '@/types/community';
 
 // 当前选中的 Tab
-const activeTab = ref('recommend');
+const activeTab = ref<'follow' | 'recommend' | 'latest'>('recommend');
 const router = useRouter();
 
-// 模拟热门话题
+// 热门话题
 const topics = ref(['减脂餐打卡', '我的16+8断食', '今天运动了吗', 'Kalu新手指南']);
 
-// 模拟社区动态数据
-const mockPosts = ref([
-    {
-        id: 1,
-        username: 'XW',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&q=80',
-        time: '10分钟前',
-        content: '今天尝试了自己做无油煎鸡胸肉，配合全麦面包，饱腹感满满！而且卡路里严格控制在了预算内，河狸给我的点评非常棒！继续保持💪',
-        images: [
-            'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=300&q=80',
-            'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&q=80'
-        ],
-        likes: 128,
-        comments: 32,
-        shares: 5,
-        isLiked: false
-    },
-    {
-        id: 2,
-        username: '健康小助手',
-        avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80',
-        time: '1小时前',
-        content: '喝水真的太重要啦！今天完成了2000ml的饮水目标。大家记得把桌上的水杯加满哦💧',
-        images: [],
-        likes: 45,
-        comments: 8,
-        shares: 1,
-        isLiked: true
+// 动态列表 & 加载状态
+const posts = ref<ShareVO[]>([]);
+const loading = ref(false);
+const errorMsg = ref('');
+
+// 格式化相对时间
+const formatRelativeTime = (dateStr: string): string => {
+  const now = Date.now();
+  const date = new Date(dateStr).getTime();
+  const diff = Math.floor((now - date) / 1000);
+  if (diff < 60) return '刚刚';
+  if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)}天前`;
+  const d = new Date(dateStr);
+  return `${d.getMonth() + 1}月${d.getDate()}日`;
+};
+
+// 获取动态列表
+const fetchPosts = async () => {
+  loading.value = true;
+  errorMsg.value = '';
+  try {
+    if (activeTab.value === 'latest') {
+      const data = await getShareList();
+      posts.value = (data || []).map(p => ({ ...p, isLiked: false, isCollected: false }));
+    } else if (activeTab.value === 'recommend') {
+      // TODO: 后端暂缺推荐接口，暂时复用大厅列表
+      const data = await getShareList();
+      posts.value = (data || []).map(p => ({ ...p, isLiked: false, isCollected: false }));
+    } else {
+      // TODO: 后端暂缺关注流接口
+      posts.value = [];
     }
-]);
+  } catch {
+    errorMsg.value = '加载失败，请下拉重试';
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 切换Tab
+const switchTab = (tab: 'follow' | 'recommend' | 'latest') => {
+  activeTab.value = tab;
+  fetchPosts();
+};
+
+// 点赞/取消点赞
+const handleLike = async (post: ShareVO) => {
+  try {
+    await toggleLike({ shareId: post.id, authorId: post.userId });
+    post.isLiked = !post.isLiked;
+    post.likeCount += post.isLiked ? 1 : -1;
+    if (post.likeCount < 0) post.likeCount = 0;
+  } catch {
+    // 静默失败
+  }
+};
+
+// 分享/转发
+const handleShare = async (post: ShareVO) => {
+  try {
+    await incrementShareCount(post.id);
+    post.shareCount += 1;
+  } catch {
+    // 静默失败
+  }
+};
 
 // 处理发布按钮点击
 const handlePost = () => {
-    router.push('/community/publish');
+  router.push('/community/publish');
 };
+
+onMounted(() => {
+  fetchPosts();
+});
 </script>
 
 <style scoped>
@@ -387,5 +450,19 @@ const handlePost = () => {
 .fab-icon {
     font-size: 24px;
     color: white;
+}
+
+/* 加载/错误/空状态 */
+.loading-state,
+.error-state,
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #999;
+    font-size: 14px;
+}
+
+.error-state {
+    color: #FF5252;
 }
 </style>

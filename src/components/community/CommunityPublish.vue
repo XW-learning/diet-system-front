@@ -7,8 +7,8 @@
         <header class="publish-header">
             <span class="cancel-btn" @click="goBack">取消</span>
             <span class="title">发布动态</span>
-            <button class="submit-btn" :class="{ 'is-active': canSubmit }" @click="handleSubmit">
-                发布
+            <button class="submit-btn" :class="{ 'is-active': canSubmit }" @click="handleSubmit" :disabled="loading">
+                {{ loading ? '发布中...' : '发布' }}
             </button>
         </header>
 
@@ -65,50 +65,87 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
-// 如果需要 Toast 提示，可以引入 vant 或你封装的 Toast 组件
-// import { showToast } from 'vant';
+import { showToast } from 'vant';
+import { saveShare, uploadImage } from '@/api/community';
+import { useUserStore } from '@/stores/user';
 
 const router = useRouter();
+const userStore = useUserStore();
 
 // 表单状态
 const content = ref('');
 const selectedImages = ref<string[]>([]);
-const selectedTopic = ref(''); // 例如：'减脂餐打卡'
+const selectedTopic = ref('');
+const loading = ref(false);
 
-// 按钮是否可点击 (只要有文字或有图片即可发布)
+// 按钮是否可点击
 const canSubmit = computed(() => {
-    return content.value.trim().length > 0 || selectedImages.value.length > 0;
+  return content.value.trim().length > 0 || selectedImages.value.length > 0;
 });
 
 // 返回上一页
 const goBack = () => {
-    // 如果用户写了内容，实际开发中可以加个弹窗确认“是否放弃编辑”
-    router.back();
+  if (content.value || selectedImages.value.length > 0) {
+    // 简化处理：直接返回（实际可加 Dialog 确认）
+  }
+  router.back();
 };
 
-// 触发图片上传
+// 触发图片选择
 const triggerUpload = () => {
-    // TODO: 调用原生/相册选择 API
-    console.log('触发选择图片');
-    // 模拟选中一张图片
-    selectedImages.value.push('https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=200&q=80');
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.multiple = true;
+  input.onchange = async (e: Event) => {
+    const target = e.target as HTMLInputElement;
+    const files = target.files;
+    if (!files || files.length === 0) return;
+
+    const maxSlots = 9 - selectedImages.value.length;
+    const filesToUpload = Array.from(files).slice(0, maxSlots);
+
+    for (const file of filesToUpload) {
+      try {
+        const url = await uploadImage(file);
+        selectedImages.value.push(url);
+      } catch {
+        showToast('图片上传失败，请重试');
+      }
+    }
+  };
+  input.click();
 };
 
 // 删除图片
 const removeImage = (index: number) => {
-    selectedImages.value.splice(index, 1);
+  selectedImages.value.splice(index, 1);
 };
 
 // 提交发布
-const handleSubmit = () => {
-    if (!canSubmit.value) return;
+const handleSubmit = async () => {
+  if (!canSubmit.value || loading.value) return;
 
-    // TODO: 调用后端发布接口
-    console.log('发布内容:', content.value, '图片:', selectedImages.value);
+  if (!userStore.userInfo?.id) {
+    showToast('请先登录');
+    return;
+  }
 
-    // 模拟发布成功
-    // showToast('发布成功');
-    router.back(); // 发布完返回社区主页
+  loading.value = true;
+  try {
+    await saveShare({
+      userId: Number(userStore.userInfo.id),
+      content: content.value,
+      privacy: 0,
+      images: selectedImages.value.length > 0 ? selectedImages.value : undefined
+    });
+    showToast('发布成功');
+    router.back();
+  } catch {
+    showToast('发布失败，请重试');
+  } finally {
+    loading.value = false;
+  }
 };
 </script>
 
