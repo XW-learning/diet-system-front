@@ -4,21 +4,49 @@ function getToken(): string | null {
   return localStorage.getItem('token');
 }
 
+function authHeaders(): Record<string, string> {
+  const token = getToken();
+  return token ? { 'Authorization': `Bearer ${token}`, 'token': token } : {};
+}
+
 interface StreamCallbacks {
   onChunk: (text: string) => void;
   onDone: () => void;
   onError: (err: Error) => void;
 }
 
+export interface ChatMessageDTO {
+  role: string;
+  content: string;
+  createTime: string;
+}
+
+export interface ChatHistoryVO {
+  role: string;
+  content: string;
+  createTime: string;
+}
+
+export interface ChatSummaryVO {
+  id: number;
+  summary: string;
+  messageCount: number;
+  createTime: string;
+}
+
+export interface ChatHistoryFullVO {
+  summaries: ChatSummaryVO[];
+  messages: ChatHistoryVO[];
+}
+
 export function streamChat(message: string, callbacks: StreamCallbacks): AbortController {
   const controller = new AbortController();
-  const token = getToken();
 
   fetch(`${BASE_URL}/ai/chat/stream`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}`, 'token': token } : {}),
+      ...authHeaders(),
     },
     body: JSON.stringify({ message }),
     signal: controller.signal,
@@ -69,14 +97,37 @@ export function streamChat(message: string, callbacks: StreamCallbacks): AbortCo
 export function recognizeFood(file: File) {
   const formData = new FormData();
   formData.append('file', file);
-  // userId 由后端从 JWT 获取，但当前 recognizeImage 接口仍需传 userId 参数
-  // 暂且兼容传 0，后端会处理
   formData.append('userId', '0');
   return fetch(`${BASE_URL}/ai/recognize`, {
     method: 'POST',
-    headers: {
-      ...(getToken() ? { 'Authorization': `Bearer ${getToken()}`, 'token': getToken()! } : {}),
-    },
+    headers: authHeaders(),
     body: formData,
+  }).then(res => res.json());
+}
+
+export function saveMessages(messages: ChatMessageDTO[]) {
+  return fetch(`${BASE_URL}/ai/chat/save`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(messages),
+  }).then(res => res.json());
+}
+
+export function loadHistory(limit = 50): Promise<ChatHistoryFullVO> {
+  return fetch(`${BASE_URL}/ai/chat/history?limit=${limit}`, {
+    headers: authHeaders(),
+  }).then(res => res.json()).then(data => data.data);
+}
+
+export function loadSummaries(): Promise<ChatSummaryVO[]> {
+  return fetch(`${BASE_URL}/ai/chat/summaries`, {
+    headers: authHeaders(),
+  }).then(res => res.json()).then(data => data.data);
+}
+
+export function clearHistory() {
+  return fetch(`${BASE_URL}/ai/chat/clear`, {
+    method: 'DELETE',
+    headers: authHeaders(),
   }).then(res => res.json());
 }

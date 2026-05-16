@@ -8,7 +8,10 @@
                 </svg>
             </div>
             <h1 class="header-title">AI 健康助手</h1>
-            <div class="header-right"></div>
+            <div class="header-right">
+                <button class="summary-trigger" @click="toggleSummaries">📋</button>
+                <button class="clear-trigger" @click="clearMessages" title="清除聊天记录">🗑</button>
+            </div>
         </header>
 
         <main class="chat-main" ref="messagesContainer">
@@ -19,7 +22,8 @@
                 </div>
 
                 <div class="message-bubble">
-                    {{ msg.content }}
+                    <span v-if="msg.role === 'user'">{{ msg.content }}</span>
+                    <span v-else v-html="formatAIContent(msg.content)"></span>
                 </div>
 
                 <div class="avatar user-avatar" v-if="msg.role === 'user'">
@@ -45,13 +49,16 @@
                 </button>
             </div>
         </footer>
+
+        <SummaryDrawer :visible="showSummaries" :summaries="summaries" @close="showSummaries = false" />
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted } from 'vue';
+import { ref, nextTick, onMounted, onUnmounted, onActivated, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { streamChat } from '@/api/ai';
+import { streamChat, loadHistory, saveMessages, loadSummaries, clearHistory, type ChatSummaryVO } from '@/api/ai';
+import SummaryDrawer from '@/components/aichat/SummaryDrawer.vue';
 
 const router = useRouter();
 
@@ -61,8 +68,52 @@ interface Message {
     content: string;
 }
 
+// ── 消息数据 ──
 let msgIdCounter = 0;
 const nextMsgId = () => ++msgIdCounter;
+
+// ── AI 内容排版美化 (修复样式穿透版) ──
+function formatAIContent(text: string): string {
+    if (!text) return '';
+
+    let formatted = text
+        // 1. 基础 HTML 字符转义 (防止 XSS)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    // 2. 强制结构展开：针对 AI 把内容全挤在一行的情况，提前切断它们
+    // 在 ### 标题前强制加换行
+    formatted = formatted.replace(/([^\n<])(###)/g, '$1<br>$2');
+    // 在 1. 2. 序号前强制换行 (规避小数误伤，如 1.5)
+    formatted = formatted.replace(/([^\n<])(\d+\.)(?!\d)/g, '$1<br>$2');
+    // 在 - 列表符前强制换行 (仅在 - 后面紧跟文字或加粗星号时断开)
+    formatted = formatted.replace(/([^\n<])(-)(?=[\u4e00-\u9fa5A-Za-z]|\*)/g, '$1<br>$2');
+
+    // 3. 规范化空格：确保处于行首的标记符后有空格，方便后续精确匹配
+    formatted = formatted.replace(/(^|\n|<br>)\s*(\d+\.)(?=[^\s\d])/g, '$1$2 ');
+    formatted = formatted.replace(/(^|\n|<br>)\s*(-)(?=[^\s])/g, '$1$2 ');
+
+    // 4. 严格按顺序执行替换：【先】处理块级样式，【后】处理内联样式
+    // 处理 ### 标题 (遇到 <br> 或行尾安全结束，绝不会吞噬 span)
+    formatted = formatted.replace(/###\s*([^\n<]+)/g, '<br><br><span class="ai-section-title">▍ $1</span><br>');
+
+    // 处理加粗 (**文本**)
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<span class="ai-bold">$1</span>');
+
+    // 处理数字序号 (限制在行首或换行后触发)
+    formatted = formatted.replace(/(?:^|\n|<br>)\s*(\d+\.)\s/g, '<br><span class="ai-list-num">$1</span> ');
+
+    // 处理子列表符 (限制在行首或换行后触发)
+    formatted = formatted.replace(/(?:^|\n|<br>)\s*([*-])\s+/g, '<br><span class="ai-list-indent"></span><span class="ai-list-dot">•</span> ');
+
+    // 5. 清理连续的冗余换行
+    formatted = formatted.replace(/\n/g, '<br>');
+    formatted = formatted.replace(/(<br>\s*){3,}/g, '<br><br>');
+    formatted = formatted.replace(/^(<br>\s*)+/, '');
+
+    return formatted;
+}
 
 const messages = ref<Message[]>([
     {
@@ -75,12 +126,76 @@ const messages = ref<Message[]>([
 const inputText = ref('');
 const isTyping = ref(false);
 const messagesContainer = ref<HTMLElement | null>(null);
+const isInitializing = ref(true);
+    
 let currentController: AbortController | null = null;
 
-const scrollToBottom = async () => {
-    await nextTick();
-    if (messagesContainer.value) {
-        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
+    nextTick(() => {
+        const container = messagesContainer.value;
+
+        if (!container) return;
+
+        // auto 模式直接赋值，最稳定
+        if (behavior === 'auto') {
+            container.scrollTop = container.scrollHeight;
+        } else {
+            container.scrollTo({
+                top: container.scrollHeight,
+                behavior
+            });
+        }
+    });
+};
+
+// 自动监听消息变化滚动
+watch(
+    () => messages.value,
+    () => {
+        // 初始化阶段禁止自动滚动
+        if (isInitializing.value) return;
+
+        // AI 流式输出时使用 auto
+        // 用户发送后使用 smooth
+        scrollToBottom(isTyping.value ? 'auto' : 'smooth');
+    },
+    { deep: true }
+);
+
+// ── 持久化缓冲区 ──
+let unsavedBuffer: { role: string; content: string; createTime: string }[] = [];
+let saveTimer: ReturnType<typeof setInterval> | null = null;
+
+const flushBuffer = () => {
+    if (unsavedBuffer.length === 0) return;
+    const batch = unsavedBuffer.splice(0);
+    saveMessages(batch).catch(e => {
+        console.error('[Chat] 入库失败:', e);
+        unsavedBuffer.unshift(...batch);
+    });
+};
+
+const addToBuffer = (role: string, content: string) => {
+    unsavedBuffer.push({
+        role,
+        content,
+        createTime: new Date().toISOString()
+    });
+    if (unsavedBuffer.length >= 20) {
+        flushBuffer();
+    }
+};
+
+// ── 摘要面板 ──
+const showSummaries = ref(false);
+const summaries = ref<ChatSummaryVO[]>([]);
+
+const toggleSummaries = async () => {
+    if (!showSummaries.value) {
+        summaries.value = await loadSummaries();
+        showSummaries.value = true;
+    } else {
+        showSummaries.value = false;
     }
 };
 
@@ -88,11 +203,28 @@ const goBack = () => {
     router.back();
 };
 
+const clearMessages = () => {
+    if (currentController) {
+        currentController.abort();
+        currentController = null;
+    }
+    isTyping.value = false;
+    messages.value = [
+        {
+            id: 1,
+            role: 'ai',
+            content: '你好！我是你的专属AI健康助手。关于卡路里计算、食谱推荐或是运动计划，随时都可以问我哦！'
+        }
+    ];
+    msgIdCounter = 1;
+    unsavedBuffer = [];
+    clearHistory().catch(e => console.error('[Chat] 清除后端历史失败:', e));
+};
+
+// ── 发送消息 ──
 const sendMessage = async () => {
     const text = inputText.value.trim();
     if (!text || isTyping.value) return;
-
-    console.log('[Chat] 用户发送:', text);
 
     if (currentController) {
         currentController.abort();
@@ -108,13 +240,14 @@ const sendMessage = async () => {
     inputText.value = '';
 
     isTyping.value = true;
-    scrollToBottom();
 
     let aiMsgId: number | null = null;
+    let aiFullContent = '';
 
     currentController = streamChat(text, {
         onChunk: (content: string) => {
-            if (isTyping.value) {
+            aiFullContent += content;
+            if (aiMsgId === null) {
                 isTyping.value = false;
                 aiMsgId = nextMsgId();
                 messages.value.push({ id: aiMsgId, role: 'ai', content });
@@ -122,15 +255,14 @@ const sendMessage = async () => {
                 const aiMsg = messages.value.find(m => m.id === aiMsgId);
                 if (aiMsg) aiMsg.content += content;
             }
-            scrollToBottom();
         },
         onDone: () => {
-            console.log('[Chat] AI回复完成');
             isTyping.value = false;
+            addToBuffer('user', text);
+            addToBuffer('ai', aiFullContent);
             currentController = null;
         },
         onError: (err: Error) => {
-            console.error('[Chat] AI错误:', err);
             isTyping.value = false;
             if (aiMsgId != null) {
                 const aiMsg = messages.value.find(m => m.id === aiMsgId);
@@ -138,18 +270,95 @@ const sendMessage = async () => {
                     aiMsg.content = '抱歉，AI 服务暂时不可用，请稍后重试。';
                 }
             }
+            addToBuffer('user', text);
             currentController = null;
         },
     });
 };
 
-onMounted(() => {
-    scrollToBottom();
+// ── beforeunload 兜底 ──
+const onBeforeUnload = () => {
+    if (unsavedBuffer.length > 0) {
+        navigator.sendBeacon(
+            '/api/ai/chat/save',
+            new Blob([JSON.stringify(unsavedBuffer)], { type: 'application/json' })
+        );
+    }
+};
+
+// ── 生命周期 ──
+onMounted(async () => {
+    try {
+        const history = await loadHistory(50);
+
+        if (history?.messages?.length) {
+            messages.value = history.messages.map((m, i) => ({
+                id: i + 1,
+                role: m.role as 'user' | 'ai',
+                content: m.content
+            }));
+
+            msgIdCounter = messages.value.length;
+        }
+
+        // 等待 Vue DOM 更新
+        await nextTick();
+
+        // 等待浏览器 layout + repaint 完成
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+
+                // 直接滚到底部
+                scrollToBottom('auto');
+
+                // 初始化结束
+                isInitializing.value = false;
+            });
+        });
+
+    } catch (e) {
+        console.error('[Chat] 加载历史失败:', e);
+    }
+
+    saveTimer = setInterval(flushBuffer, 30_000);
+    window.addEventListener('beforeunload', onBeforeUnload);
+});
+
+onUnmounted(() => {
+    if (saveTimer) clearInterval(saveTimer);
+    flushBuffer();
+    window.removeEventListener('beforeunload', onBeforeUnload);
+});
+
+onActivated(async () => {
+    isInitializing.value = true;
+    try {
+        const history = await loadHistory(50);
+        if (history?.messages?.length) {
+            messages.value = history.messages.map((m, i) => ({
+                id: i + 1,
+                role: m.role as 'user' | 'ai',
+                content: m.content
+            }));
+            msgIdCounter = messages.value.length;
+        }
+
+        await nextTick();
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                scrollToBottom('auto');
+                isInitializing.value = false;
+            });
+        });
+    } catch (e) {
+        console.error('[Chat] 重新加载历史失败:', e);
+        isInitializing.value = false;
+    }
 });
 </script>
 
 <style scoped>
-/* 容器采用 Flex 布局，铺满全屏 */
+/* 样式部分保持不变 */
 .chat-container {
     display: flex;
     flex-direction: column;
@@ -158,7 +367,6 @@ onMounted(() => {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/* --- 1. 头部样式 --- */
 .chat-header {
     display: flex;
     align-items: center;
@@ -185,11 +393,47 @@ onMounted(() => {
 }
 
 .header-right {
-    width: 24px;
-    /* 占位，使标题居中 */
+    display: flex;
+    align-items: center;
 }
 
-/* --- 2. 聊天区域样式 --- */
+.summary-trigger {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: #f0f2f5;
+    border-radius: 50%;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.summary-trigger:active {
+    background: #e0e0e0;
+}
+
+.clear-trigger {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: #f0f2f5;
+    border-radius: 50%;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    margin-left: 8px;
+}
+
+.clear-trigger:active {
+    background: #ffe0e0;
+}
+
 .chat-main {
     flex: 1;
     overflow-y: auto;
@@ -197,9 +441,10 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     gap: 20px;
+    /* 平滑滚动方案 */
+    scroll-behavior: smooth;
 }
 
-/* 隐藏滚动条但保留滚动功能 (适配移动端) */
 .chat-main::-webkit-scrollbar {
     display: none;
 }
@@ -218,7 +463,6 @@ onMounted(() => {
     justify-content: flex-start;
 }
 
-/* 头像通用样式 */
 .avatar {
     width: 40px;
     height: 40px;
@@ -248,7 +492,6 @@ onMounted(() => {
     background-color: #ffffff;
 }
 
-/* 消息气泡样式 */
 .message-bubble {
     max-width: 70%;
     padding: 12px 16px;
@@ -261,10 +504,8 @@ onMounted(() => {
 
 .is-user .message-bubble {
     background-color: #1890ff;
-    /* 主题蓝，可根据你们的UI规范替换为主色调 */
     color: #ffffff;
     border-top-right-radius: 4px;
-    /* 右上角直角，增强指向性 */
 }
 
 .is-ai .message-bubble {
@@ -272,9 +513,46 @@ onMounted(() => {
     color: #333333;
     border-top-left-radius: 4px;
     text-align: left;
+    line-height: 1.7;
+    letter-spacing: 0.5px;
 }
 
-/* --- 3. 打字机动画样式 --- */
+:deep(.ai-bold) {
+    font-weight: 600;
+    color: #1a1a1a;
+    padding: 0 2px;
+}
+
+:deep(.ai-section-title) {
+    display: inline-block;
+    font-size: 16px;
+    font-weight: bold;
+    color: #1890ff;
+    margin-top: 6px;
+    margin-bottom: 2px;
+}
+
+:deep(.ai-list-num) {
+    display: inline-block;
+    font-weight: 700;
+    color: #1890ff;
+    font-size: 15px;
+    margin-top: 6px;
+}
+
+:deep(.ai-list-indent) {
+    display: inline-block;
+    width: 22px;
+}
+
+:deep(.ai-list-dot) {
+    display: inline-block;
+    color: #ff7a45;
+    font-weight: bold;
+    transform: scale(1.2);
+    margin-right: 4px;
+}
+
 .typing-indicator {
     display: flex;
     align-items: center;
@@ -313,11 +591,9 @@ onMounted(() => {
     }
 }
 
-/* --- 4. 底部输入区样式 --- */
 .chat-footer {
     background-color: #ffffff;
     box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.05);
-    /* 适配刘海屏底部安全距离 */
     padding-bottom: env(safe-area-inset-bottom);
 }
 
